@@ -206,19 +206,7 @@ function validateCurrentStep() {
     return false;
 }
 
-// Обработчики выбора
-function selectCity(city) {
-    clearCitySelection();
-    formData.city = city;
-    document.querySelector(`[data-city="${city}"]:not(.filter)`).classList.add('selected');
-    document.getElementById('customCity').value = '';
-}
-
-function clearCitySelection() {
-    document.querySelectorAll('.city-btn:not(.filter)').forEach(btn => {
-        btn.classList.remove('selected');
-    });
-}
+// Обработчики выбора (старые функции удалены - используется новая система локации)
 
 function selectGender(gender) {
     document.querySelectorAll('.gender-btn').forEach(btn => btn.classList.remove('selected'));
@@ -414,9 +402,405 @@ tg.onEvent('web_app_data_received', function(data) {
     }
 });
 
+// Данные локаций
+const locationData = {
+    russia: {
+        name: 'Россия',
+        flag: '🇷🇺',
+        regions: {
+            'Москва': ['Москва'],
+            'Санкт-Петербург': ['Санкт-Петербург'],
+            'Московская область': ['Балашиха', 'Подольск', 'Химки', 'Королёв', 'Мытищи', 'Люберцы', 'Красногорск', 'Электросталь', 'Коломна', 'Одинцово'],
+            'Ленинградская область': ['Гатчина', 'Выборг', 'Сосновый Бор', 'Тихвин', 'Кириши', 'Волхов'],
+            'Новосибирская область': ['Новосибирск', 'Бердск', 'Искитим', 'Куйбышев', 'Обь'],
+            'Свердловская область': ['Екатеринбург', 'Нижний Тагил', 'Каменск-Уральский', 'Первоуральск', 'Серов'],
+            'Татарстан': ['Казань', 'Набережные Челны', 'Нижнекамск', 'Альметьевск', 'Зеленодольск'],
+            'Краснодарский край': ['Краснодар', 'Сочи', 'Новороссийск', 'Армавир', 'Геленджик'],
+            'Ростовская область': ['Ростов-на-Дону', 'Таганрог', 'Шахты', 'Новочеркасск', 'Волгодонск'],
+            'Челябинская область': ['Челябинск', 'Магнитогорск', 'Златоуст', 'Миасс', 'Копейск'],
+            'Нижегородская область': ['Нижний Новгород', 'Дзержинск', 'Арзамас', 'Саров', 'Бор']
+        }
+    },
+    kazakhstan: {
+        name: 'Казахстан',
+        flag: '🇰🇿',
+        regions: {
+            'Алматинская область': ['Алматы', 'Талдыкорган', 'Капчагай', 'Текели', 'Жаркент'],
+            'Нур-Султан': ['Нур-Султан (Астана)'],
+            'Шымкент': ['Шымкент'],
+            'Актюбинская область': ['Актобе', 'Хромтау', 'Алга', 'Темир'],
+            'Атырауская область': ['Атырау', 'Кульсары', 'Жылыой'],
+            'Западно-Казахстанская область': ['Уральск', 'Аксай', 'Казталовка'],
+            'Карагандинская область': ['Караганда', 'Темиртау', 'Жезказган', 'Балхаш'],
+            'Костанайская область': ['Костанай', 'Рудный', 'Житикара', 'Лисаковск'],
+            'Мангистауская область': ['Актау', 'Жанаозен', 'Бейнеу'],
+            'Павлодарская область': ['Павлодар', 'Экибастуз', 'Аксу'],
+            'Северо-Казахстанская область': ['Петропавловск', 'Булаево', 'Тайынша'],
+            'Восточно-Казахстанская область': ['Усть-Каменогорск', 'Семей', 'Риддер', 'Зыряновск'],
+            'Жамбылская область': ['Тараз', 'Жанатас', 'Каратау', 'Шу'],
+            'Кызылординская область': ['Кызылорда', 'Байконур', 'Арал']
+        }
+    }
+};
+
+// Переменные для системы локации
+let selectedCountry = null;
+let selectedRegion = null;
+let selectedCity = null;
+
+// Инициализация системы локации
+function initLocationSelector() {
+    // Обработчики для кнопок стран
+    document.querySelectorAll('.form-country').forEach(btn => {
+        btn.addEventListener('click', function() {
+            selectCountry(this.dataset.country);
+        });
+    });
+
+    // Обработчики для полей ввода регионов и городов
+    const regionInput = document.querySelector('.form-region-input');
+    const cityInput = document.querySelector('.form-city-input');
+    
+    if (regionInput) {
+        regionInput.addEventListener('input', function() {
+            handleRegionInput(this.value);
+        });
+        
+        regionInput.addEventListener('focus', function() {
+            showAllRegions();
+        });
+    }
+    
+    if (cityInput) {
+        cityInput.addEventListener('input', function() {
+            handleCityInput(this.value);
+        });
+        
+        cityInput.addEventListener('focus', function() {
+            if (selectedRegion) {
+                showAllCities();
+            }
+        });
+    }
+
+    // Кнопка сброса локации
+    const resetBtn = document.querySelector('.reset-form-location');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetLocationSelection);
+    }
+
+    // Скрытие списков при клике вне их
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-container')) {
+            hideAllSuggestions();
+        }
+    });
+}
+
+// Выбор страны
+function selectCountry(countryCode) {
+    selectedCountry = countryCode;
+    selectedRegion = null;
+    selectedCity = null;
+    
+    // Обновляем кнопки
+    document.querySelectorAll('.form-country').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-country="${countryCode}"]`).classList.add('active');
+    
+    // Показываем выбор региона с анимацией
+    const regionSection = document.querySelector('.form-region-selection');
+    regionSection.style.display = 'block';
+    setTimeout(() => {
+        regionSection.style.opacity = '1';
+    }, 50);
+    
+    // Скрываем остальные секции
+    document.querySelector('.form-city-selection').style.display = 'none';
+    document.querySelector('.form-selected-location').style.display = 'none';
+    
+    // Очищаем поля
+    document.querySelector('.form-region-input').value = '';
+    document.querySelector('.form-city-input').value = '';
+    
+    console.log('Выбрана страна:', locationData[countryCode].name);
+}
+
+// Обработка ввода региона
+function handleRegionInput(value) {
+    if (!selectedCountry) return;
+    
+    const regions = Object.keys(locationData[selectedCountry].regions);
+    const filtered = regions.filter(region => 
+        region.toLowerCase().includes(value.toLowerCase())
+    );
+    
+    showRegionSuggestions(filtered);
+}
+
+// Показать все регионы
+function showAllRegions() {
+    if (!selectedCountry) return;
+    
+    const regions = Object.keys(locationData[selectedCountry].regions);
+    showRegionSuggestions(regions);
+}
+
+// Показать предложения регионов
+function showRegionSuggestions(regions) {
+    const suggestionsContainer = document.querySelector('.form-region-suggestions');
+    
+    if (regions.length === 0) {
+        suggestionsContainer.style.display = 'none';
+        return;
+    }
+    
+    suggestionsContainer.innerHTML = regions.map(region => `
+        <div class="suggestion-item" onclick="selectRegion('${region}')">
+            ${region}
+        </div>
+    `).join('');
+    
+    suggestionsContainer.classList.add('active');
+}
+
+// Выбор региона
+function selectRegion(regionName) {
+    selectedRegion = regionName;
+    selectedCity = null;
+    
+    document.querySelector('.form-region-input').value = regionName;
+    hideAllSuggestions();
+    
+    // Показываем выбор города с анимацией
+    const citySection = document.querySelector('.form-city-selection');
+    citySection.style.display = 'block';
+    setTimeout(() => {
+        citySection.style.opacity = '1';
+    }, 50);
+    
+    // Очищаем поле города
+    document.querySelector('.form-city-input').value = '';
+    document.querySelector('.form-city-input').focus();
+    
+    console.log('Выбран регион:', regionName);
+}
+
+// Обработка ввода города
+function handleCityInput(value) {
+    if (!selectedCountry || !selectedRegion) return;
+    
+    const cities = locationData[selectedCountry].regions[selectedRegion];
+    const filtered = cities.filter(city => 
+        city.toLowerCase().includes(value.toLowerCase())
+    );
+    
+    showCitySuggestions(filtered);
+}
+
+// Показать все города
+function showAllCities() {
+    if (!selectedCountry || !selectedRegion) return;
+    
+    const cities = locationData[selectedCountry].regions[selectedRegion];
+    showCitySuggestions(cities);
+}
+
+// Показать предложения городов
+function showCitySuggestions(cities) {
+    const suggestionsContainer = document.querySelector('.form-city-suggestions');
+    
+    if (cities.length === 0) {
+        suggestionsContainer.style.display = 'none';
+        return;
+    }
+    
+    suggestionsContainer.innerHTML = cities.map(city => `
+        <div class="suggestion-item" onclick="selectCity('${city}')">
+            ${city}
+        </div>
+    `).join('');
+    
+    suggestionsContainer.classList.add('active');
+}
+
+// Выбор города
+function selectCity(cityName) {
+    selectedCity = cityName;
+    
+    document.querySelector('.form-city-input').value = cityName;
+    hideAllSuggestions();
+    
+    // Обновляем данные формы
+    formData.country = selectedCountry;
+    formData.region = selectedRegion;
+    formData.city = cityName;
+    
+    // Показываем выбранную локацию
+    showSelectedLocation();
+    
+    console.log('Выбран город:', cityName);
+    console.log('Полная локация:', `${locationData[selectedCountry].name}, ${selectedRegion}, ${cityName}`);
+}
+
+// Показать выбранную локацию
+function showSelectedLocation() {
+    const selectedLocationDiv = document.querySelector('.form-selected-location');
+    const locationText = document.querySelector('.form-location-text');
+    
+    const fullLocation = `${locationData[selectedCountry].flag} ${selectedRegion}, ${selectedCity}`;
+    locationText.textContent = fullLocation;
+    
+    // Скрываем секции выбора
+    document.querySelector('.form-region-selection').style.display = 'none';
+    document.querySelector('.form-city-selection').style.display = 'none';
+    
+    // Показываем выбранную локацию с анимацией
+    selectedLocationDiv.style.display = 'block';
+    setTimeout(() => {
+        selectedLocationDiv.style.opacity = '1';
+    }, 50);
+}
+
+// Сброс выбора локации
+function resetLocationSelection() {
+    selectedCountry = null;
+    selectedRegion = null;
+    selectedCity = null;
+    
+    // Очищаем данные формы
+    delete formData.country;
+    delete formData.region;
+    delete formData.city;
+    
+    // Сбрасываем кнопки стран
+    document.querySelectorAll('.form-country').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Очищаем поля ввода
+    document.querySelector('.form-region-input').value = '';
+    document.querySelector('.form-city-input').value = '';
+    
+    // Скрываем все секции кроме выбора страны
+    document.querySelector('.form-region-selection').style.display = 'none';
+    document.querySelector('.form-city-selection').style.display = 'none';
+    document.querySelector('.form-selected-location').style.display = 'none';
+    
+    hideAllSuggestions();
+    
+    console.log('Выбор локации сброшен');
+}
+
+// Скрыть все списки предложений
+function hideAllSuggestions() {
+    document.querySelectorAll('.suggestions-list').forEach(list => {
+        list.classList.remove('active');
+    });
+}
+
+// Обновляем обработчики событий
+function setupEventListeners() {
+    // Инициализируем систему локации
+    initLocationSelector();
+    
+    // Кнопки выбора пола
+    document.querySelectorAll('.gender-btn').forEach(btn => {
+        btn.addEventListener('click', () => selectGender(btn.dataset.gender));
+    });
+
+    // Кнопки выбора цели поиска
+    document.querySelectorAll('.target-btn').forEach(btn => {
+        btn.addEventListener('click', () => selectTarget(btn.dataset.target));
+    });
+
+    // Кнопки выбора цели знакомства
+    document.querySelectorAll('.goal-btn').forEach(btn => {
+        btn.addEventListener('click', () => selectGoal(btn.dataset.goal));
+    });
+
+    // Кнопки выбора телосложения
+    document.querySelectorAll('.body-btn').forEach(btn => {
+        btn.addEventListener('click', () => selectBody(btn.dataset.body));
+    });
+
+    // Фильтры в просмотре объявлений
+    document.querySelectorAll('.city-btn.filter').forEach(btn => {
+        btn.addEventListener('click', function() {
+            handleCityFilter(this.dataset.city);
+        });
+    });
+}
+
+// Обновляем валидацию первого шага
+function validateCurrentStep() {
+    switch(currentStep) {
+        case 1:
+            // Проверяем новую систему локации
+            return selectedCity || formData.city;
+        case 2:
+            return formData.gender;
+        case 3:
+            return formData.target;
+        case 4:
+            return formData.goal;
+        case 5:
+            const ageFrom = document.getElementById('ageFrom').value;
+            const ageTo = document.getElementById('ageTo').value;
+            if (ageFrom && ageTo) {
+                formData.ageFrom = ageFrom;
+                formData.ageTo = ageTo;
+                return true;
+            }
+            return false;
+        case 6:
+            const myAge = document.getElementById('myAge').value;
+            if (myAge) {
+                formData.myAge = myAge;
+                return true;
+            }
+            return false;
+        case 7:
+            return formData.body;
+        case 8:
+            const adText = document.getElementById('adText').value.trim();
+            if (adText) {
+                formData.text = adText;
+                return true;
+            }
+            return false;
+    }
+    return false;
+}
+
+// Обновляем сброс формы
+function resetForm() {
+    formData = {};
+    currentStep = 1;
+    
+    // Сброс системы локации
+    resetLocationSelection();
+    
+    // Сброс всех выборов
+    document.querySelectorAll('.selected').forEach(el => {
+        el.classList.remove('selected');
+    });
+    
+    // Очистка полей
+    document.getElementById('ageFrom').value = '';
+    document.getElementById('ageTo').value = '';
+    document.getElementById('myAge').value = '';
+    document.getElementById('adText').value = '';
+    
+    showStep(1);
+}
+
 // Отладочные функции
 window.debugApp = {
     formData: () => console.log(formData),
     currentStep: () => console.log(currentStep),
-    tg: () => console.log(tg)
+    tg: () => console.log(tg),
+    locationData: () => console.log(locationData),
+    selectedLocation: () => console.log({selectedCountry, selectedRegion, selectedCity})
 };

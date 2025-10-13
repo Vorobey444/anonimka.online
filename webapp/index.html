@@ -39,15 +39,48 @@
             
             <form id="adForm" class="form-container">
                 <div class="form-step active" id="step1">
-                    <h3>🏙 Выберите город</h3>
-                    <div class="city-grid">
-                        <button type="button" class="city-btn" data-city="Москва">Москва</button>
-                        <button type="button" class="city-btn" data-city="Санкт-Петербург">СПб</button>
-                        <button type="button" class="city-btn" data-city="Новосибирск">Новосибирск</button>
-                        <button type="button" class="city-btn" data-city="Екатеринбург">Екатеринбург</button>
-                        <button type="button" class="city-btn" data-city="Казань">Казань</button>
+                    <h3>� Выберите локацию</h3>
+                    
+                    <!-- Выбор страны для формы -->
+                    <div class="form-country-selection">
+                        <h4>Страна</h4>
+                        <div class="country-buttons">
+                            <button type="button" class="country-btn form-country" data-country="russia">
+                                <span class="flag">🇷🇺</span>
+                                Россия
+                            </button>
+                            <button type="button" class="country-btn form-country" data-country="kazakhstan">
+                                <span class="flag">🇰🇿</span>
+                                Казахстан
+                            </button>
+                        </div>
                     </div>
-                    <input type="text" id="customCity" placeholder="Или введите свой город..." class="neon-input">
+
+                    <!-- Выбор региона для формы -->
+                    <div class="form-region-selection" style="display: none;">
+                        <h4>Регион/область</h4>
+                        <div class="search-container">
+                            <input type="text" class="form-region-input" placeholder="Начните вводить название...">
+                            <div class="suggestions-list form-region-suggestions"></div>
+                        </div>
+                    </div>
+
+                    <!-- Выбор города для формы -->
+                    <div class="form-city-selection" style="display: none;">
+                        <h4>Город</h4>
+                        <div class="search-container">
+                            <input type="text" class="form-city-input" placeholder="Введите название города...">
+                            <div class="suggestions-list form-city-suggestions"></div>
+                        </div>
+                    </div>
+
+                    <!-- Отображение выбранной локации -->
+                    <div class="form-selected-location" style="display: none;">
+                        <div class="location-display">
+                            <span class="form-location-text"></span>
+                            <button type="button" class="reset-form-location">🔄 Изменить</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-step" id="step2">
@@ -134,14 +167,48 @@
                 <h2>Объявления</h2>
             </div>
             
-            <div class="city-filter">
-                <h3>🏙 Выберите город</h3>
-                <div class="city-grid">
-                    <button type="button" class="city-btn filter" data-city="Москва">Москва</button>
-                    <button type="button" class="city-btn filter" data-city="Санкт-Петербург">СПб</button>
-                    <button type="button" class="city-btn filter" data-city="Новосибирск">Новосибирск</button>
-                    <button type="button" class="city-btn filter" data-city="Екатеринбург">Екатеринбург</button>
-                    <button type="button" class="city-btn filter" data-city="Казань">Казань</button>
+            <div class="location-selector">
+                <h3>� Выберите локацию</h3>
+                
+                <!-- Выбор страны -->
+                <div class="country-selection">
+                    <h4>Страна</h4>
+                    <div class="country-buttons">
+                        <button type="button" class="country-btn" data-country="russia">
+                            <span class="flag">🇷🇺</span>
+                            Россия
+                        </button>
+                        <button type="button" class="country-btn" data-country="kazakhstan">
+                            <span class="flag">🇰🇿</span>
+                            Казахстан
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Выбор региона/области -->
+                <div class="region-selection" style="display: none;">
+                    <h4>Регион/область</h4>
+                    <div class="search-container">
+                        <input type="text" class="region-input" placeholder="Начните вводить название...">
+                        <div class="suggestions-list region-suggestions"></div>
+                    </div>
+                </div>
+
+                <!-- Выбор города -->
+                <div class="city-selection" style="display: none;">
+                    <h4>Город</h4>
+                    <div class="search-container">
+                        <input type="text" class="city-input" placeholder="Введите название города...">
+                        <div class="suggestions-list city-suggestions"></div>
+                    </div>
+                </div>
+
+                <!-- Выбранная локация -->
+                <div class="selected-location" style="display: none;">
+                    <div class="location-display">
+                        <span class="location-text"></span>
+                        <button class="reset-location">🔄 Изменить</button>
+                    </div>
                 </div>
             </div>
 

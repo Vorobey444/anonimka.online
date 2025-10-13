@@ -513,3 +513,172 @@ h3 {
 ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(180deg, var(--neon-cyan), var(--neon-pink));
 }
+
+/* Система выбора локации */
+.form-country-selection, .form-region-selection, .form-city-selection {
+    margin: 1.5rem 0;
+    animation: fadeIn 0.5s ease;
+}
+
+.form-country-selection h4, .form-region-selection h4, .form-city-selection h4 {
+    color: var(--neon-cyan);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+}
+
+/* Кнопки стран */
+.country-buttons {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.country-btn {
+    background: linear-gradient(135deg, 
+        rgba(131, 56, 236, 0.2) 0%, 
+        rgba(0, 217, 255, 0.2) 100%);
+    border: 2px solid rgba(131, 56, 236, 0.5);
+    color: #fff;
+    padding: 1rem 1.5rem;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    font-size: 1.1rem;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.country-btn:hover {
+    border-color: var(--neon-purple);
+    box-shadow: 
+        0 0 20px rgba(131, 56, 236, 0.4),
+        inset 0 0 20px rgba(131, 56, 236, 0.1);
+    transform: translateY(-2px);
+}
+
+.country-btn.active {
+    border-color: var(--neon-cyan);
+    background: linear-gradient(135deg, 
+        rgba(0, 217, 255, 0.3) 0%, 
+        rgba(131, 56, 236, 0.3) 100%);
+    box-shadow: 
+        0 0 25px rgba(0, 217, 255, 0.5),
+        inset 0 0 25px rgba(0, 217, 255, 0.2);
+}
+
+.flag {
+    font-size: 1.3rem;
+}
+
+/* Контейнеры поиска */
+.search-container {
+    position: relative;
+    margin: 1rem 0;
+}
+
+.form-region-input, .form-city-input {
+    width: 100%;
+    background: rgba(26, 26, 46, 0.8);
+    border: 2px solid rgba(255, 0, 110, 0.5);
+    color: #fff;
+    padding: 1rem;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+.form-region-input:focus, .form-city-input:focus {
+    outline: none;
+    border-color: var(--neon-pink);
+    box-shadow: 
+        0 0 20px rgba(255, 0, 110, 0.3),
+        inset 0 0 20px rgba(255, 0, 110, 0.1);
+}
+
+.form-region-input::placeholder, .form-city-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Список предложений */
+.suggestions-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(10, 10, 15, 0.95);
+    border: 2px solid rgba(255, 0, 110, 0.3);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.suggestions-list.active {
+    display: block;
+}
+
+.suggestion-item {
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 0, 110, 0.2);
+    transition: all 0.2s ease;
+    color: #fff;
+}
+
+.suggestion-item:hover {
+    background: rgba(255, 0, 110, 0.2);
+    color: var(--neon-pink);
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+/* Отображение выбранной локации */
+.form-selected-location {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: linear-gradient(135deg, 
+        rgba(0, 217, 255, 0.1) 0%, 
+        rgba(255, 0, 110, 0.1) 100%);
+    border: 2px solid rgba(0, 217, 255, 0.5);
+    border-radius: 15px;
+    animation: fadeIn 0.5s ease;
+}
+
+.location-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.form-location-text {
+    color: var(--neon-cyan);
+    font-weight: 500;
+    font-size: 1.1rem;
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+}
+
+.reset-form-location {
+    background: rgba(255, 0, 110, 0.2);
+    border: 1px solid rgba(255, 0, 110, 0.5);
+    color: var(--neon-pink);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.reset-form-location:hover {
+    background: rgba(255, 0, 110, 0.3);
+    box-shadow: 0 0 10px rgba(255, 0, 110, 0.4);
+}

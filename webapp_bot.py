@@ -12,7 +12,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TOKEN = "8400755138:AAGG-yNvQknz60IXM7xVHeN-xNtzjHFTG1U"
-WEBAPP_URL = "https://anonimka.online/"  # Mini App на вашем домене
+WEBAPP_URL = "https://vorobey444.github.io/anonimka.online/"  # GitHub Pages (рабочий)
 
 # Хранилище объявлений (в реальном проекте используйте базу данных)
 ads: List[Dict[str, str]] = []
