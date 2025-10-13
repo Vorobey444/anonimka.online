@@ -133,6 +133,8 @@ function showCreateAd() {
 
 function showBrowseAds() {
     showScreen('browseAds');
+    // Сбрасываем фильтр при открытии раздела просмотра
+    resetFilterLocationSelection();
     loadAds();
 }
 
@@ -448,18 +450,30 @@ let selectedCountry = null;
 let selectedRegion = null;
 let selectedCity = null;
 
+// Переменные для фильтра в просмотре объявлений
+let filterSelectedCountry = null;
+let filterSelectedRegion = null;
+let filterSelectedCity = null;
+
 // Инициализация системы локации
 function initLocationSelector() {
-    // Обработчики для кнопок стран
-    document.querySelectorAll('.form-country').forEach(btn => {
+    // Обработчики для кнопок стран (форма создания)
+    document.querySelectorAll('.form-country:not(.filter-country)').forEach(btn => {
         btn.addEventListener('click', function() {
             selectCountry(this.dataset.country);
         });
     });
+    
+    // Обработчики для кнопок стран (фильтр просмотра)
+    document.querySelectorAll('.filter-country').forEach(btn => {
+        btn.addEventListener('click', function() {
+            selectFilterCountry(this.dataset.country);
+        });
+    });
 
-    // Обработчики для полей ввода регионов и городов
-    const regionInput = document.querySelector('.form-region-input');
-    const cityInput = document.querySelector('.form-city-input');
+    // Обработчики для полей ввода регионов и городов (форма создания)
+    const regionInput = document.querySelector('.form-region-input:not(.filter-region-input)');
+    const cityInput = document.querySelector('.form-city-input:not(.filter-city-input)');
     
     if (regionInput) {
         regionInput.addEventListener('input', function() {
@@ -482,11 +496,43 @@ function initLocationSelector() {
             }
         });
     }
+    
+    // Обработчики для полей ввода фильтра
+    const filterRegionInput = document.querySelector('.filter-region-input');
+    const filterCityInput = document.querySelector('.filter-city-input');
+    
+    if (filterRegionInput) {
+        filterRegionInput.addEventListener('input', function() {
+            handleFilterRegionInput(this.value);
+        });
+        
+        filterRegionInput.addEventListener('focus', function() {
+            showAllFilterRegions();
+        });
+    }
+    
+    if (filterCityInput) {
+        filterCityInput.addEventListener('input', function() {
+            handleFilterCityInput(this.value);
+        });
+        
+        filterCityInput.addEventListener('focus', function() {
+            if (filterSelectedRegion) {
+                showAllFilterCities();
+            }
+        });
+    }
 
-    // Кнопка сброса локации
-    const resetBtn = document.querySelector('.reset-form-location');
+    // Кнопка сброса локации (форма)
+    const resetBtn = document.querySelector('.reset-form-location:not(.reset-filter-location)');
     if (resetBtn) {
         resetBtn.addEventListener('click', resetLocationSelection);
+    }
+    
+    // Кнопка сброса локации (фильтр)
+    const resetFilterBtn = document.querySelector('.reset-filter-location');
+    if (resetFilterBtn) {
+        resetFilterBtn.addEventListener('click', resetFilterLocationSelection);
     }
 
     // Скрытие списков при клике вне их
@@ -796,11 +842,222 @@ function resetForm() {
     showStep(1);
 }
 
+// === ФУНКЦИИ ДЛЯ ФИЛЬТРА В ПРОСМОТРЕ ОБЪЯВЛЕНИЙ ===
+
+// Выбор страны для фильтра
+function selectFilterCountry(countryCode) {
+    filterSelectedCountry = countryCode;
+    filterSelectedRegion = null;
+    filterSelectedCity = null;
+    
+    // Обновляем кнопки
+    document.querySelectorAll('.filter-country').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-country="${countryCode}"].filter-country`).classList.add('active');
+    
+    // Показываем выбор региона с анимацией
+    const regionSection = document.querySelector('.filter-region-selection');
+    regionSection.style.display = 'block';
+    setTimeout(() => {
+        regionSection.style.opacity = '1';
+    }, 50);
+    
+    // Скрываем остальные секции
+    document.querySelector('.filter-city-selection').style.display = 'none';
+    document.querySelector('.filter-selected-location').style.display = 'none';
+    
+    // Очищаем поля
+    document.querySelector('.filter-region-input').value = '';
+    document.querySelector('.filter-city-input').value = '';
+    
+    console.log('Выбрана страна для фильтра:', locationData[countryCode].name);
+}
+
+// Обработка ввода региона для фильтра
+function handleFilterRegionInput(value) {
+    if (!filterSelectedCountry) return;
+    
+    const regions = Object.keys(locationData[filterSelectedCountry].regions);
+    const filtered = regions.filter(region => 
+        region.toLowerCase().includes(value.toLowerCase())
+    );
+    
+    showFilterRegionSuggestions(filtered);
+}
+
+// Показать все регионы для фильтра
+function showAllFilterRegions() {
+    if (!filterSelectedCountry) return;
+    
+    const regions = Object.keys(locationData[filterSelectedCountry].regions);
+    showFilterRegionSuggestions(regions);
+}
+
+// Показать предложения регионов для фильтра
+function showFilterRegionSuggestions(regions) {
+    const suggestionsContainer = document.querySelector('.filter-region-suggestions');
+    
+    if (regions.length === 0) {
+        suggestionsContainer.style.display = 'none';
+        return;
+    }
+    
+    suggestionsContainer.innerHTML = regions.map(region => `
+        <div class="suggestion-item" onclick="selectFilterRegion('${region}')">
+            ${region}
+        </div>
+    `).join('');
+    
+    suggestionsContainer.classList.add('active');
+}
+
+// Выбор региона для фильтра
+function selectFilterRegion(regionName) {
+    filterSelectedRegion = regionName;
+    filterSelectedCity = null;
+    
+    document.querySelector('.filter-region-input').value = regionName;
+    hideAllSuggestions();
+    
+    // Показываем выбор города с анимацией
+    const citySection = document.querySelector('.filter-city-selection');
+    citySection.style.display = 'block';
+    setTimeout(() => {
+        citySection.style.opacity = '1';
+    }, 50);
+    
+    // Очищаем поле города
+    document.querySelector('.filter-city-input').value = '';
+    document.querySelector('.filter-city-input').focus();
+    
+    console.log('Выбран регион для фильтра:', regionName);
+}
+
+// Обработка ввода города для фильтра
+function handleFilterCityInput(value) {
+    if (!filterSelectedCountry || !filterSelectedRegion) return;
+    
+    const cities = locationData[filterSelectedCountry].regions[filterSelectedRegion];
+    const filtered = cities.filter(city => 
+        city.toLowerCase().includes(value.toLowerCase())
+    );
+    
+    showFilterCitySuggestions(filtered);
+}
+
+// Показать все города для фильтра
+function showAllFilterCities() {
+    if (!filterSelectedCountry || !filterSelectedRegion) return;
+    
+    const cities = locationData[filterSelectedCountry].regions[filterSelectedRegion];
+    showFilterCitySuggestions(cities);
+}
+
+// Показать предложения городов для фильтра
+function showFilterCitySuggestions(cities) {
+    const suggestionsContainer = document.querySelector('.filter-city-suggestions');
+    
+    if (cities.length === 0) {
+        suggestionsContainer.style.display = 'none';
+        return;
+    }
+    
+    suggestionsContainer.innerHTML = cities.map(city => `
+        <div class="suggestion-item" onclick="selectFilterCity('${city}')">
+            ${city}
+        </div>
+    `).join('');
+    
+    suggestionsContainer.classList.add('active');
+}
+
+// Выбор города для фильтра
+function selectFilterCity(cityName) {
+    filterSelectedCity = cityName;
+    
+    document.querySelector('.filter-city-input').value = cityName;
+    hideAllSuggestions();
+    
+    // Показываем выбранную локацию
+    showFilterSelectedLocation();
+    
+    // Загружаем объявления по выбранной локации
+    loadAdsByLocation(filterSelectedCountry, filterSelectedRegion, cityName);
+    
+    console.log('Выбран город для фильтра:', cityName);
+    console.log('Полная локация фильтра:', `${locationData[filterSelectedCountry].name}, ${filterSelectedRegion}, ${cityName}`);
+}
+
+// Показать выбранную локацию для фильтра
+function showFilterSelectedLocation() {
+    const selectedLocationDiv = document.querySelector('.filter-selected-location');
+    const locationText = document.querySelector('.filter-location-text');
+    
+    const fullLocation = `${locationData[filterSelectedCountry].flag} ${filterSelectedRegion}, ${filterSelectedCity}`;
+    locationText.textContent = fullLocation;
+    
+    // Скрываем секции выбора
+    document.querySelector('.filter-region-selection').style.display = 'none';
+    document.querySelector('.filter-city-selection').style.display = 'none';
+    
+    // Показываем выбранную локацию с анимацией
+    selectedLocationDiv.style.display = 'block';
+    setTimeout(() => {
+        selectedLocationDiv.style.opacity = '1';
+    }, 50);
+}
+
+// Сброс выбора локации для фильтра
+function resetFilterLocationSelection() {
+    filterSelectedCountry = null;
+    filterSelectedRegion = null;
+    filterSelectedCity = null;
+    
+    // Сбрасываем кнопки стран
+    document.querySelectorAll('.filter-country').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Очищаем поля ввода
+    document.querySelector('.filter-region-input').value = '';
+    document.querySelector('.filter-city-input').value = '';
+    
+    // Скрываем все секции кроме выбора страны
+    document.querySelector('.filter-region-selection').style.display = 'none';
+    document.querySelector('.filter-city-selection').style.display = 'none';
+    document.querySelector('.filter-selected-location').style.display = 'none';
+    
+    hideAllSuggestions();
+    
+    // Загружаем все объявления
+    loadAds();
+    
+    console.log('Выбор локации фильтра сброшен');
+}
+
+// Загрузка объявлений по локации
+function loadAdsByLocation(country, region, city) {
+    try {
+        tg.sendData(JSON.stringify({
+            action: 'getAdsByLocation',
+            country: country,
+            region: region,
+            city: city
+        }));
+        
+        console.log('Запрос объявлений по локации:', {country, region, city});
+    } catch (error) {
+        console.error('Ошибка загрузки объявлений по локации:', error);
+    }
+}
+
 // Отладочные функции
 window.debugApp = {
     formData: () => console.log(formData),
     currentStep: () => console.log(currentStep),
     tg: () => console.log(tg),
     locationData: () => console.log(locationData),
-    selectedLocation: () => console.log({selectedCountry, selectedRegion, selectedCity})
+    selectedLocation: () => console.log({selectedCountry, selectedRegion, selectedCity}),
+    filterLocation: () => console.log({filterSelectedCountry, filterSelectedRegion, filterSelectedCity})
 };

@@ -173,44 +173,44 @@
             <div class="location-selector">
                 <h3>� Выберите локацию</h3>
                 
-                <!-- Выбор страны -->
-                <div class="country-selection">
+                <!-- Выбор страны для фильтра -->
+                <div class="form-country-selection">
                     <h4>Страна</h4>
                     <div class="country-buttons">
-                        <button type="button" class="country-btn" data-country="russia">
+                        <button type="button" class="country-btn form-country filter-country" data-country="russia">
                             <span class="flag">🇷🇺</span>
                             Россия
                         </button>
-                        <button type="button" class="country-btn" data-country="kazakhstan">
+                        <button type="button" class="country-btn form-country filter-country" data-country="kazakhstan">
                             <span class="flag">🇰🇿</span>
                             Казахстан
                         </button>
                     </div>
                 </div>
 
-                <!-- Выбор региона/области -->
-                <div class="region-selection" style="display: none;">
+                <!-- Выбор региона для фильтра -->
+                <div class="form-region-selection filter-region-selection" style="display: none;">
                     <h4>Регион/область</h4>
                     <div class="search-container">
-                        <input type="text" class="region-input" placeholder="Начните вводить название...">
-                        <div class="suggestions-list region-suggestions"></div>
+                        <input type="text" class="form-region-input filter-region-input" placeholder="Начните вводить название...">
+                        <div class="suggestions-list form-region-suggestions filter-region-suggestions"></div>
                     </div>
                 </div>
 
-                <!-- Выбор города -->
-                <div class="city-selection" style="display: none;">
+                <!-- Выбор города для фильтра -->
+                <div class="form-city-selection filter-city-selection" style="display: none;">
                     <h4>Город</h4>
                     <div class="search-container">
-                        <input type="text" class="city-input" placeholder="Введите название города...">
-                        <div class="suggestions-list city-suggestions"></div>
+                        <input type="text" class="form-city-input filter-city-input" placeholder="Введите название города...">
+                        <div class="suggestions-list form-city-suggestions filter-city-suggestions"></div>
                     </div>
                 </div>
 
-                <!-- Выбранная локация -->
-                <div class="selected-location" style="display: none;">
+                <!-- Отображение выбранной локации для фильтра -->
+                <div class="form-selected-location filter-selected-location" style="display: none;">
                     <div class="location-display">
-                        <span class="location-text"></span>
-                        <button class="reset-location">🔄 Изменить</button>
+                        <span class="form-location-text filter-location-text"></span>
+                        <button type="button" class="reset-form-location reset-filter-location">🔄 Изменить</button>
                     </div>
                 </div>
             </div>
