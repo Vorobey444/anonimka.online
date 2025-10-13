@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анонимная доска объявлений</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Главное меню -->
+        <div id="mainMenu" class="screen active">
+            <div class="header">
+                <div class="logo">
+                    <div class="neon-icon">👤</div>
+                    <h1>Анонимные объявления</h1>
+                </div>
+            </div>
+            
+            <div class="menu-buttons">
+                <button class="neon-button primary" onclick="showCreateAd()">
+                    <span class="icon">📝</span>
+                    Подать объявление
+                </button>
+                <button class="neon-button secondary" onclick="showBrowseAds()">
+                    <span class="icon">👀</span>
+                    Смотреть объявления
+                </button>
+            </div>
+        </div>
+
+        <!-- Создание объявления -->
+        <div id="createAd" class="screen">
+            <div class="header">
+                <button class="back-btn" onclick="showMainMenu()">← Назад</button>
+                <h2>Создать объявление</h2>
+            </div>
+            
+            <form id="adForm" class="form-container">
+                <div class="form-step active" id="step1">
+                    <h3>🏙 Выберите город</h3>
+                    <div class="city-grid">
+                        <button type="button" class="city-btn" data-city="Москва">Москва</button>
+                        <button type="button" class="city-btn" data-city="Санкт-Петербург">СПб</button>
+                        <button type="button" class="city-btn" data-city="Новосибирск">Новосибирск</button>
+                        <button type="button" class="city-btn" data-city="Екатеринбург">Екатеринбург</button>
+                        <button type="button" class="city-btn" data-city="Казань">Казань</button>
+                    </div>
+                    <input type="text" id="customCity" placeholder="Или введите свой город..." class="neon-input">
+                </div>
+
+                <div class="form-step" id="step2">
+                    <h3>👤 Ваш пол</h3>
+                    <div class="gender-select">
+                        <button type="button" class="gender-btn" data-gender="Мужчина">
+                            <span class="icon">👨</span>
+                            Мужчина
+                        </button>
+                        <button type="button" class="gender-btn" data-gender="Женщина">
+                            <span class="icon">👩</span>
+                            Женщина
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-step" id="step3">
+                    <h3>🔍 Кого ищете</h3>
+                    <div class="target-select">
+                        <button type="button" class="target-btn" data-target="Мужчину">👨 Мужчину</button>
+                        <button type="button" class="target-btn" data-target="Женщину">👩 Женщину</button>
+                        <button type="button" class="target-btn" data-target="Пару">👫 Пару</button>
+                    </div>
+                </div>
+
+                <div class="form-step" id="step4">
+                    <h3>🎯 Цель знакомства</h3>
+                    <div class="goal-select">
+                        <button type="button" class="goal-btn" data-goal="Дружба">🤝 Дружба</button>
+                        <button type="button" class="goal-btn" data-goal="Путешествия">✈️ Путешествия</button>
+                        <button type="button" class="goal-btn" data-goal="Общение">💬 Общение</button>
+                        <button type="button" class="goal-btn" data-goal="Секс">🔥 Секс</button>
+                        <button type="button" class="goal-btn" data-goal="Другое">❓ Другое</button>
+                    </div>
+                </div>
+
+                <div class="form-step" id="step5">
+                    <h3>📅 Возраст партнера</h3>
+                    <div class="age-range">
+                        <div class="input-group">
+                            <label>От</label>
+                            <input type="number" id="ageFrom" min="18" max="100" class="neon-input small">
+                        </div>
+                        <div class="input-group">
+                            <label>До</label>
+                            <input type="number" id="ageTo" min="18" max="100" class="neon-input small">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-step" id="step6">
+                    <h3>🎂 Ваш возраст</h3>
+                    <input type="number" id="myAge" min="18" max="100" class="neon-input" placeholder="Введите ваш возраст">
+                </div>
+
+                <div class="form-step" id="step7">
+                    <h3>💪 Телосложение</h3>
+                    <div class="body-select">
+                        <button type="button" class="body-btn" data-body="Стройное">✨ Стройное</button>
+                        <button type="button" class="body-btn" data-body="Обычное">👤 Обычное</button>
+                        <button type="button" class="body-btn" data-body="Плотное">💪 Плотное</button>
+                        <button type="button" class="body-btn" data-body="Спортивное">🏋️ Спортивное</button>
+                        <button type="button" class="body-btn" data-body="Другое">❓ Другое</button>
+                    </div>
+                </div>
+
+                <div class="form-step" id="step8">
+                    <h3>💬 Текст объявления</h3>
+                    <textarea id="adText" class="neon-textarea" placeholder="Расскажите о себе и что ищете..." rows="6"></textarea>
+                </div>
+            </form>
+
+            <div class="form-navigation">
+                <button id="prevBtn" class="nav-btn" onclick="previousStep()" style="display: none;">← Назад</button>
+                <button id="nextBtn" class="nav-btn primary" onclick="nextStep()">Далее →</button>
+                <button id="submitBtn" class="nav-btn success" onclick="submitAd()" style="display: none;">🚀 Опубликовать</button>
+            </div>
+        </div>
+
+        <!-- Просмотр объявлений -->
+        <div id="browseAds" class="screen">
+            <div class="header">
+                <button class="back-btn" onclick="showMainMenu()">← Назад</button>
+                <h2>Объявления</h2>
+            </div>
+            
+            <div class="city-filter">
+                <h3>🏙 Выберите город</h3>
+                <div class="city-grid">
+                    <button type="button" class="city-btn filter" data-city="Москва">Москва</button>
+                    <button type="button" class="city-btn filter" data-city="Санкт-Петербург">СПб</button>
+                    <button type="button" class="city-btn filter" data-city="Новосибирск">Новосибирск</button>
+                    <button type="button" class="city-btn filter" data-city="Екатеринбург">Екатеринбург</button>
+                    <button type="button" class="city-btn filter" data-city="Казань">Казань</button>
+                </div>
+            </div>
+
+            <div id="adsList" class="ads-list">
+                <!-- Объявления будут загружены через JS -->
+            </div>
+        </div>
+
+        <!-- Детали объявления -->
+        <div id="adDetails" class="screen">
+            <div class="header">
+                <button class="back-btn" onclick="showBrowseAds()">← К объявлениям</button>
+                <h2>Объявление</h2>
+            </div>
+            
+            <div id="adContent" class="ad-details">
+                <!-- Контент объявления -->
+            </div>
+            
+            <button class="neon-button primary full-width" onclick="contactAuthor()">
+                ✉️ Написать автору
+            </button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
