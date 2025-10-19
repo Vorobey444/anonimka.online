@@ -10,8 +10,8 @@ const totalSteps = 8;
 // Инициализация приложения
 document.addEventListener('DOMContentLoaded', function() {
     initializeTelegramWebApp();
+    checkUserLocation();
     setupEventListeners();
-    loadAds();
 });
 
 function initializeTelegramWebApp() {
@@ -126,9 +126,34 @@ function showMainMenu() {
 }
 
 function showCreateAd() {
+    if (!userLocation) {
+        tg.showAlert('Сначала выберите ваш город');
+        showLocationSetup();
+        return;
+    }
+    
     showScreen('createAd');
     currentStep = 1;
     showStep(1);
+    
+    // Автоматически заполняем локацию из настроек пользователя
+    formData.country = userLocation.country;
+    formData.region = userLocation.region;
+    formData.city = userLocation.city;
+    
+    // Отображаем локацию в форме
+    updateFormLocationDisplay();
+}
+
+// Обновить отображение локации в форме
+function updateFormLocationDisplay() {
+    if (userLocation) {
+        const locationText = `${locationData[userLocation.country].flag} ${userLocation.region}, ${userLocation.city}`;
+        const formLocationDisplay = document.getElementById('formLocationDisplay');
+        if (formLocationDisplay) {
+            formLocationDisplay.textContent = locationText;
+        }
+    }
 }
 
 function showBrowseAds() {
@@ -420,7 +445,13 @@ const locationData = {
             'Краснодарский край': ['Краснодар', 'Сочи', 'Новороссийск', 'Армавир', 'Геленджик'],
             'Ростовская область': ['Ростов-на-Дону', 'Таганрог', 'Шахты', 'Новочеркасск', 'Волгодонск'],
             'Челябинская область': ['Челябинск', 'Магнитогорск', 'Златоуст', 'Миасс', 'Копейск'],
-            'Нижегородская область': ['Нижний Новгород', 'Дзержинск', 'Арзамас', 'Саров', 'Бор']
+            'Нижегородская область': ['Нижний Новгород', 'Дзержинск', 'Арзамас', 'Саров', 'Бор'],
+            'Калининградская область': ['Калининград', 'Советск', 'Черняховск', 'Балтийск'],
+            'Калужская область': ['Калуга', 'Обнинск', 'Людиново'],
+            'Курская область': ['Курск', 'Железногорск', 'Курчатов'],
+            'Кемеровская область': ['Кемерово', 'Новокузнецк', 'Прокопьевск', 'Междуреченск'],
+            'Кировская область': ['Киров', 'Кирово-Чепецк', 'Вятские Поляны'],
+            'Костромская область': ['Кострома', 'Буй', 'Нерехта']
         }
     },
     kazakhstan: {
@@ -450,10 +481,107 @@ let selectedCountry = null;
 let selectedRegion = null;
 let selectedCity = null;
 
+// Переменные для настройки локации
+let setupSelectedCountry = null;
+let setupSelectedRegion = null;
+let setupSelectedCity = null;
+
+// Сохраненная локация пользователя
+let userLocation = null;
+
 // Переменные для фильтра в просмотре объявлений
 let filterSelectedCountry = null;
 let filterSelectedRegion = null;
 let filterSelectedCity = null;
+
+// Проверка сохраненной локации пользователя
+function checkUserLocation() {
+    // Попробуем получить локацию из Telegram Web App Storage
+    try {
+        if (tg.CloudStorage) {
+            tg.CloudStorage.getItem('userLocation', function(err, value) {
+                if (!err && value) {
+                    userLocation = JSON.parse(value);
+                    displayUserLocation();
+                    showMainMenu();
+                } else {
+                    showLocationSetup();
+                }
+            });
+        } else {
+            // Fallback - используем localStorage
+            const savedLocation = localStorage.getItem('userLocation');
+            if (savedLocation) {
+                userLocation = JSON.parse(savedLocation);
+                displayUserLocation();
+                showMainMenu();
+            } else {
+                showLocationSetup();
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка при получении локации:', error);
+        showLocationSetup();
+    }
+}
+
+// Отображение текущей локации пользователя
+function displayUserLocation() {
+    if (userLocation) {
+        const locationText = `${locationData[userLocation.country].flag} ${userLocation.region}, ${userLocation.city}`;
+        const locationDisplay = document.getElementById('userLocationDisplay');
+        if (locationDisplay) {
+            locationDisplay.textContent = locationText;
+        }
+        console.log('Текущая локация пользователя:', locationText);
+    }
+}
+
+// Сохранение локации пользователя
+function saveUserLocation(country, region, city) {
+    userLocation = {
+        country: country,
+        region: region,
+        city: city,
+        timestamp: Date.now()
+    };
+    
+    try {
+        if (tg.CloudStorage) {
+            tg.CloudStorage.setItem('userLocation', JSON.stringify(userLocation), function(err) {
+                if (!err) {
+                    console.log('Локация сохранена в Telegram Cloud Storage');
+                } else {
+                    console.error('Ошибка сохранения в Cloud Storage:', err);
+                    localStorage.setItem('userLocation', JSON.stringify(userLocation));
+                }
+            });
+        } else {
+            localStorage.setItem('userLocation', JSON.stringify(userLocation));
+            console.log('Локация сохранена в localStorage');
+        }
+    } catch (error) {
+        console.error('Ошибка сохранения локации:', error);
+    }
+}
+
+// Показать экран настройки локации
+function showLocationSetup() {
+    showScreen('locationSetup');
+    resetSetupLocation();
+}
+
+// Сохранить локацию и перейти к главному меню
+function saveLocationAndContinue() {
+    if (setupSelectedCountry && setupSelectedRegion && setupSelectedCity) {
+        saveUserLocation(setupSelectedCountry, setupSelectedRegion, setupSelectedCity);
+        displayUserLocation();
+        updateFormLocationDisplay();
+        showMainMenu();
+    } else {
+        tg.showAlert('Пожалуйста, выберите страну, регион и город');
+    }
+}
 
 // Инициализация системы локации
 function initLocationSelector() {
@@ -470,6 +598,13 @@ function initLocationSelector() {
             selectFilterCountry(this.dataset.country);
         });
     });
+    
+    // Обработчики для экрана настройки локации
+    document.querySelectorAll('.setup-country').forEach(btn => {
+        btn.addEventListener('click', function() {
+            selectSetupCountry(this.dataset.country);
+        });
+    });
 
     // Обработчики для полей ввода регионов и городов (форма создания)
     const regionInput = document.querySelector('.form-region-input:not(.filter-region-input)');
@@ -480,8 +615,16 @@ function initLocationSelector() {
             handleRegionInput(this.value);
         });
         
+        regionInput.addEventListener('keyup', function() {
+            handleRegionInput(this.value);
+        });
+        
         regionInput.addEventListener('focus', function() {
-            showAllRegions();
+            if (this.value.trim()) {
+                handleRegionInput(this.value);
+            } else {
+                showAllRegions();
+            }
         });
     }
     
@@ -490,9 +633,17 @@ function initLocationSelector() {
             handleCityInput(this.value);
         });
         
+        cityInput.addEventListener('keyup', function() {
+            handleCityInput(this.value);
+        });
+        
         cityInput.addEventListener('focus', function() {
             if (selectedRegion) {
-                showAllCities();
+                if (this.value.trim()) {
+                    handleCityInput(this.value);
+                } else {
+                    showAllCities();
+                }
             }
         });
     }
@@ -506,8 +657,16 @@ function initLocationSelector() {
             handleFilterRegionInput(this.value);
         });
         
+        filterRegionInput.addEventListener('keyup', function() {
+            handleFilterRegionInput(this.value);
+        });
+        
         filterRegionInput.addEventListener('focus', function() {
-            showAllFilterRegions();
+            if (this.value.trim()) {
+                handleFilterRegionInput(this.value);
+            } else {
+                showAllFilterRegions();
+            }
         });
     }
     
@@ -516,13 +675,63 @@ function initLocationSelector() {
             handleFilterCityInput(this.value);
         });
         
+        filterCityInput.addEventListener('keyup', function() {
+            handleFilterCityInput(this.value);
+        });
+        
         filterCityInput.addEventListener('focus', function() {
             if (filterSelectedRegion) {
-                showAllFilterCities();
+                if (this.value.trim()) {
+                    handleFilterCityInput(this.value);
+                } else {
+                    showAllFilterCities();
+                }
             }
         });
     }
-
+    
+    // Обработчики для полей настройки локации
+    const setupRegionInput = document.querySelector('.setup-region-input');
+    const setupCityInput = document.querySelector('.setup-city-input');
+    
+    if (setupRegionInput) {
+        setupRegionInput.addEventListener('input', function() {
+            handleSetupRegionInput(this.value);
+        });
+        
+        setupRegionInput.addEventListener('keyup', function() {
+            handleSetupRegionInput(this.value);
+        });
+        
+        setupRegionInput.addEventListener('focus', function() {
+            if (this.value.trim()) {
+                handleSetupRegionInput(this.value);
+            } else {
+                showAllSetupRegions();
+            }
+        });
+    }
+    
+    if (setupCityInput) {
+        setupCityInput.addEventListener('input', function() {
+            handleSetupCityInput(this.value);
+        });
+        
+        setupCityInput.addEventListener('keyup', function() {
+            handleSetupCityInput(this.value);
+        });
+        
+        setupCityInput.addEventListener('focus', function() {
+            if (setupSelectedRegion) {
+                if (this.value.trim()) {
+                    handleSetupCityInput(this.value);
+                } else {
+                    showAllSetupCities();
+                }
+            }
+        });
+    }
+    
     // Кнопка сброса локации (форма)
     const resetBtn = document.querySelector('.reset-form-location:not(.reset-filter-location)');
     if (resetBtn) {
@@ -533,6 +742,12 @@ function initLocationSelector() {
     const resetFilterBtn = document.querySelector('.reset-filter-location');
     if (resetFilterBtn) {
         resetFilterBtn.addEventListener('click', resetFilterLocationSelection);
+    }
+    
+    // Кнопка сброса настройки локации
+    const resetSetupBtn = document.querySelector('.reset-setup-location');
+    if (resetSetupBtn) {
+        resetSetupBtn.addEventListener('click', resetSetupLocation);
     }
 
     // Скрытие списков при клике вне их
@@ -577,9 +792,15 @@ function selectCountry(countryCode) {
 function handleRegionInput(value) {
     if (!selectedCountry) return;
     
+    // Если поле пустое, скрываем предложения
+    if (!value.trim()) {
+        hideAllSuggestions();
+        return;
+    }
+    
     const regions = Object.keys(locationData[selectedCountry].regions);
     const filtered = regions.filter(region => 
-        region.toLowerCase().includes(value.toLowerCase())
+        region.toLowerCase().startsWith(value.toLowerCase())
     );
     
     showRegionSuggestions(filtered);
@@ -599,6 +820,7 @@ function showRegionSuggestions(regions) {
     
     if (regions.length === 0) {
         suggestionsContainer.style.display = 'none';
+        suggestionsContainer.classList.remove('active');
         return;
     }
     
@@ -608,6 +830,7 @@ function showRegionSuggestions(regions) {
         </div>
     `).join('');
     
+    suggestionsContainer.style.display = 'block';
     suggestionsContainer.classList.add('active');
 }
 
@@ -637,9 +860,15 @@ function selectRegion(regionName) {
 function handleCityInput(value) {
     if (!selectedCountry || !selectedRegion) return;
     
+    // Если поле пустое, скрываем предложения
+    if (!value.trim()) {
+        hideAllSuggestions();
+        return;
+    }
+    
     const cities = locationData[selectedCountry].regions[selectedRegion];
     const filtered = cities.filter(city => 
-        city.toLowerCase().includes(value.toLowerCase())
+        city.toLowerCase().startsWith(value.toLowerCase())
     );
     
     showCitySuggestions(filtered);
@@ -659,6 +888,7 @@ function showCitySuggestions(cities) {
     
     if (cities.length === 0) {
         suggestionsContainer.style.display = 'none';
+        suggestionsContainer.classList.remove('active');
         return;
     }
     
@@ -668,6 +898,7 @@ function showCitySuggestions(cities) {
         </div>
     `).join('');
     
+    suggestionsContainer.style.display = 'block';
     suggestionsContainer.classList.add('active');
 }
 
@@ -743,6 +974,8 @@ function resetLocationSelection() {
 function hideAllSuggestions() {
     document.querySelectorAll('.suggestions-list').forEach(list => {
         list.classList.remove('active');
+        list.style.display = 'none';
+        list.innerHTML = '';
     });
 }
 
@@ -783,10 +1016,9 @@ function setupEventListeners() {
 function validateCurrentStep() {
     switch(currentStep) {
         case 1:
-            // Проверяем новую систему локации
-            return selectedCity || formData.city;
-        case 2:
+            // Теперь первый шаг - выбор пола
             return formData.gender;
+        case 2:
         case 3:
             return formData.target;
         case 4:
@@ -878,9 +1110,15 @@ function selectFilterCountry(countryCode) {
 function handleFilterRegionInput(value) {
     if (!filterSelectedCountry) return;
     
+    // Если поле пустое, скрываем предложения
+    if (!value.trim()) {
+        hideAllSuggestions();
+        return;
+    }
+    
     const regions = Object.keys(locationData[filterSelectedCountry].regions);
     const filtered = regions.filter(region => 
-        region.toLowerCase().includes(value.toLowerCase())
+        region.toLowerCase().startsWith(value.toLowerCase())
     );
     
     showFilterRegionSuggestions(filtered);
@@ -938,9 +1176,15 @@ function selectFilterRegion(regionName) {
 function handleFilterCityInput(value) {
     if (!filterSelectedCountry || !filterSelectedRegion) return;
     
+    // Если поле пустое, скрываем предложения
+    if (!value.trim()) {
+        hideAllSuggestions();
+        return;
+    }
+    
     const cities = locationData[filterSelectedCountry].regions[filterSelectedRegion];
     const filtered = cities.filter(city => 
-        city.toLowerCase().includes(value.toLowerCase())
+        city.toLowerCase().startsWith(value.toLowerCase())
     );
     
     showFilterCitySuggestions(filtered);
@@ -1052,6 +1296,207 @@ function loadAdsByLocation(country, region, city) {
     }
 }
 
+// === ФУНКЦИИ ДЛЯ НАСТРОЙКИ ЛОКАЦИИ ===
+
+// Выбор страны в настройке
+function selectSetupCountry(countryCode) {
+    setupSelectedCountry = countryCode;
+    setupSelectedRegion = null;
+    setupSelectedCity = null;
+    
+    // Обновляем кнопки
+    document.querySelectorAll('.setup-country').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-country="${countryCode}"].setup-country`).classList.add('active');
+    
+    // Показываем выбор региона с анимацией
+    const regionSection = document.querySelector('.setup-region-selection');
+    regionSection.style.display = 'block';
+    setTimeout(() => {
+        regionSection.style.opacity = '1';
+    }, 50);
+    
+    // Скрываем остальные секции
+    document.querySelector('.setup-city-selection').style.display = 'none';
+    document.querySelector('.setup-selected-location').style.display = 'none';
+    
+    // Очищаем поля
+    document.querySelector('.setup-region-input').value = '';
+    document.querySelector('.setup-city-input').value = '';
+    
+    console.log('Выбрана страна для настройки:', locationData[countryCode].name);
+}
+
+// Обработка ввода региона в настройке
+function handleSetupRegionInput(value) {
+    if (!setupSelectedCountry) return;
+    
+    if (!value.trim()) {
+        hideAllSuggestions();
+        return;
+    }
+    
+    const regions = Object.keys(locationData[setupSelectedCountry].regions);
+    const filtered = regions.filter(region => 
+        region.toLowerCase().startsWith(value.toLowerCase())
+    );
+    
+    showSetupRegionSuggestions(filtered);
+}
+
+// Показать все регионы в настройке
+function showAllSetupRegions() {
+    if (!setupSelectedCountry) return;
+    
+    const regions = Object.keys(locationData[setupSelectedCountry].regions);
+    showSetupRegionSuggestions(regions);
+}
+
+// Показать предложения регионов в настройке
+function showSetupRegionSuggestions(regions) {
+    const suggestionsContainer = document.querySelector('.setup-region-suggestions');
+    
+    if (regions.length === 0) {
+        suggestionsContainer.style.display = 'none';
+        suggestionsContainer.classList.remove('active');
+        return;
+    }
+    
+    suggestionsContainer.innerHTML = regions.map(region => `
+        <div class="suggestion-item" onclick="selectSetupRegion('${region}')">
+            ${region}
+        </div>
+    `).join('');
+    
+    suggestionsContainer.style.display = 'block';
+    suggestionsContainer.classList.add('active');
+}
+
+// Выбор региона в настройке
+function selectSetupRegion(regionName) {
+    setupSelectedRegion = regionName;
+    setupSelectedCity = null;
+    
+    document.querySelector('.setup-region-input').value = regionName;
+    hideAllSuggestions();
+    
+    // Показываем выбор города с анимацией
+    const citySection = document.querySelector('.setup-city-selection');
+    citySection.style.display = 'block';
+    setTimeout(() => {
+        citySection.style.opacity = '1';
+    }, 50);
+    
+    // Очищаем поле города
+    document.querySelector('.setup-city-input').value = '';
+    document.querySelector('.setup-city-input').focus();
+    
+    console.log('Выбран регион в настройке:', regionName);
+}
+
+// Обработка ввода города в настройке
+function handleSetupCityInput(value) {
+    if (!setupSelectedCountry || !setupSelectedRegion) return;
+    
+    if (!value.trim()) {
+        hideAllSuggestions();
+        return;
+    }
+    
+    const cities = locationData[setupSelectedCountry].regions[setupSelectedRegion];
+    const filtered = cities.filter(city => 
+        city.toLowerCase().startsWith(value.toLowerCase())
+    );
+    
+    showSetupCitySuggestions(filtered);
+}
+
+// Показать все города в настройке
+function showAllSetupCities() {
+    if (!setupSelectedCountry || !setupSelectedRegion) return;
+    
+    const cities = locationData[setupSelectedCountry].regions[setupSelectedRegion];
+    showSetupCitySuggestions(cities);
+}
+
+// Показать предложения городов в настройке
+function showSetupCitySuggestions(cities) {
+    const suggestionsContainer = document.querySelector('.setup-city-suggestions');
+    
+    if (cities.length === 0) {
+        suggestionsContainer.style.display = 'none';
+        suggestionsContainer.classList.remove('active');
+        return;
+    }
+    
+    suggestionsContainer.innerHTML = cities.map(city => `
+        <div class="suggestion-item" onclick="selectSetupCity('${city}')">
+            ${city}
+        </div>
+    `).join('');
+    
+    suggestionsContainer.style.display = 'block';
+    suggestionsContainer.classList.add('active');
+}
+
+// Выбор города в настройке
+function selectSetupCity(cityName) {
+    setupSelectedCity = cityName;
+    
+    document.querySelector('.setup-city-input').value = cityName;
+    hideAllSuggestions();
+    
+    // Показываем выбранную локацию
+    showSetupSelectedLocation();
+    
+    console.log('Выбран город в настройке:', cityName);
+}
+
+// Показать выбранную локацию в настройке
+function showSetupSelectedLocation() {
+    const selectedLocationDiv = document.querySelector('.setup-selected-location');
+    const locationText = document.querySelector('.setup-location-text');
+    
+    const fullLocation = `${locationData[setupSelectedCountry].flag} ${setupSelectedRegion}, ${setupSelectedCity}`;
+    locationText.textContent = fullLocation;
+    
+    // Скрываем секции выбора
+    document.querySelector('.setup-region-selection').style.display = 'none';
+    document.querySelector('.setup-city-selection').style.display = 'none';
+    
+    // Показываем выбранную локацию с анимацией
+    selectedLocationDiv.style.display = 'block';
+    setTimeout(() => {
+        selectedLocationDiv.style.opacity = '1';
+    }, 50);
+}
+
+// Сброс настройки локации
+function resetSetupLocation() {
+    setupSelectedCountry = null;
+    setupSelectedRegion = null;
+    setupSelectedCity = null;
+    
+    // Сбрасываем кнопки стран
+    document.querySelectorAll('.setup-country').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Очищаем поля ввода
+    document.querySelector('.setup-region-input').value = '';
+    document.querySelector('.setup-city-input').value = '';
+    
+    // Скрываем все секции кроме выбора страны
+    document.querySelector('.setup-region-selection').style.display = 'none';
+    document.querySelector('.setup-city-selection').style.display = 'none';
+    document.querySelector('.setup-selected-location').style.display = 'none';
+    
+    hideAllSuggestions();
+    
+    console.log('Настройка локации сброшена');
+}
+
 // Отладочные функции
 window.debugApp = {
     formData: () => console.log(formData),
@@ -1059,5 +1504,15 @@ window.debugApp = {
     tg: () => console.log(tg),
     locationData: () => console.log(locationData),
     selectedLocation: () => console.log({selectedCountry, selectedRegion, selectedCity}),
-    filterLocation: () => console.log({filterSelectedCountry, filterSelectedRegion, filterSelectedCity})
+    filterLocation: () => console.log({filterSelectedCountry, filterSelectedRegion, filterSelectedCity}),
+    setupLocation: () => console.log({setupSelectedCountry, setupSelectedRegion, setupSelectedCity}),
+    userLocation: () => console.log(userLocation),
+    clearUserLocation: () => {
+        if (tg.CloudStorage) {
+            tg.CloudStorage.removeItem('userLocation');
+        }
+        localStorage.removeItem('userLocation');
+        userLocation = null;
+        showLocationSetup();
+    }
 };

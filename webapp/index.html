@@ -7,17 +7,77 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Анонимная доска объявлений</title>
-    <link rel="stylesheet" href="style.css?v=2.1">
+    <link rel="stylesheet" href="style.css?v=3.0">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
     <div class="app-container">
+        <!-- Выбор локации при первом запуске -->
+        <div id="locationSetup" class="screen">
+            <div class="header">
+                <div class="logo">
+                    <div class="neon-icon">🌍</div>
+                    <h1>Выберите ваш город</h1>
+                    <p>Это поможет показывать релевантные объявления</p>
+                </div>
+            </div>
+            
+            <div class="location-setup-container">
+                <!-- Выбор страны -->
+                <div class="setup-country-selection">
+                    <h3>Страна</h3>
+                    <div class="country-buttons">
+                        <button type="button" class="country-btn setup-country" data-country="russia">
+                            <span class="flag">🇷🇺</span>
+                            Россия
+                        </button>
+                        <button type="button" class="country-btn setup-country" data-country="kazakhstan">
+                            <span class="flag">🇰🇿</span>
+                            Казахстан
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Выбор региона -->
+                <div class="setup-region-selection" style="display: none;">
+                    <h3>Регион/область</h3>
+                    <div class="search-container">
+                        <input type="text" class="setup-region-input" placeholder="Начните вводить название...">
+                        <div class="suggestions-list setup-region-suggestions"></div>
+                    </div>
+                </div>
+
+                <!-- Выбор города -->
+                <div class="setup-city-selection" style="display: none;">
+                    <h3>Город</h3>
+                    <div class="search-container">
+                        <input type="text" class="setup-city-input" placeholder="Введите название города...">
+                        <div class="suggestions-list setup-city-suggestions"></div>
+                    </div>
+                </div>
+
+                <!-- Отображение выбранной локации -->
+                <div class="setup-selected-location" style="display: none;">
+                    <div class="location-display">
+                        <span class="setup-location-text"></span>
+                        <button type="button" class="reset-setup-location">🔄 Изменить</button>
+                    </div>
+                    <button class="neon-button primary full-width" onclick="saveLocationAndContinue()">
+                        ✅ Подтвердить и продолжить
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Главное меню -->
-        <div id="mainMenu" class="screen active">
+        <div id="mainMenu" class="screen">
             <div class="header">
                 <div class="logo">
                     <div class="neon-icon">👤</div>
                     <h1>Анонимные объявления</h1>
+                    <div class="user-location">
+                        <span class="location-info" id="userLocationDisplay"></span>
+                    </div>
                 </div>
             </div>
             
@@ -29,6 +89,10 @@
                 <button class="neon-button secondary" onclick="showBrowseAds()">
                     <span class="icon">👀</span>
                     Смотреть объявления
+                </button>
+                <button class="neon-button tertiary" onclick="showLocationSetup()">
+                    <span class="icon">📍</span>
+                    Сменить город
                 </button>
             </div>
         </div>
@@ -42,52 +106,16 @@
             
             <form id="adForm" class="form-container">
                 <div class="form-step active" id="step1">
-                    <h3>� Выберите локацию</h3>
-                    
-                    <!-- Выбор страны для формы -->
-                    <div class="form-country-selection">
-                        <h4>Страна</h4>
-                        <div class="country-buttons">
-                            <button type="button" class="country-btn form-country" data-country="russia">
-                                <span class="flag">🇷🇺</span>
-                                Россия
-                            </button>
-                            <button type="button" class="country-btn form-country" data-country="kazakhstan">
-                                <span class="flag">🇰🇿</span>
-                                Казахстан
-                            </button>
-                        </div>
+                    <h3>👤 Ваш пол</h3>
+                    <div class="current-location">
+                        <p>📍 Ваш город: <span id="formLocationDisplay"></span></p>
+                        <button type="button" class="change-location-btn" onclick="showLocationSetup()">
+                            📍 Сменить город
+                        </button>
                     </div>
 
-                    <!-- Выбор региона для формы -->
-                    <div class="form-region-selection" style="display: none;">
-                        <h4>Регион/область</h4>
-                        <div class="search-container">
-                            <input type="text" class="form-region-input" placeholder="Начните вводить название...">
-                            <div class="suggestions-list form-region-suggestions"></div>
-                        </div>
-                    </div>
-
-                    <!-- Выбор города для формы -->
-                    <div class="form-city-selection" style="display: none;">
-                        <h4>Город</h4>
-                        <div class="search-container">
-                            <input type="text" class="form-city-input" placeholder="Введите название города...">
-                            <div class="suggestions-list form-city-suggestions"></div>
-                        </div>
-                    </div>
-
-                    <!-- Отображение выбранной локации -->
-                    <div class="form-selected-location" style="display: none;">
-                        <div class="location-display">
-                            <span class="form-location-text"></span>
-                            <button type="button" class="reset-form-location">🔄 Изменить</button>
-                        </div>
-                    </div>
                 </div>
 
-                <div class="form-step" id="step2">
-                    <h3>👤 Ваш пол</h3>
                     <div class="gender-select">
                         <button type="button" class="gender-btn" data-gender="Мужчина">
                             <span class="icon">👨</span>
@@ -99,6 +127,8 @@
                         </button>
                     </div>
                 </div>
+
+                <div class="form-step" id="step2">
 
                 <div class="form-step" id="step3">
                     <h3>🔍 Кого ищете</h3>
@@ -237,6 +267,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=2.1"></script>
+    <script src="app.js?v=3.0"></script>
 </body>
 </html>
