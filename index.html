@@ -168,10 +168,10 @@
                 <h2>Контакты</h2>
             </div>
             <div class="info-content">
-                <div class="contact-item" onclick="openEmailComposer()">
+                <div class="contact-item" onclick="showEmailForm()">
                     <span class="contact-icon">📧</span>
                     <div class="contact-details">
-                        <h3>Электронная почта</h3>
+                        <h3>Написать письмо</h3>
                         <p>aleksey@vorobey444.ru</p>
                         <span class="contact-action">Нажмите для отправки письма</span>
                     </div>
@@ -190,6 +190,48 @@
                         <h3>Время работы</h3>
                         <p>Поддержка в рабочие дни</p>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Форма отправки письма -->
+        <div id="emailForm" class="screen">
+            <div class="header">
+                <button class="back-btn" onclick="showContacts()">← Назад</button>
+                <h2>Написать письмо</h2>
+            </div>
+            
+            <div class="email-form-container">
+                <form id="contactForm" class="contact-form">
+                    <div class="form-group">
+                        <label for="senderEmail">Ваша почта для ответа *</label>
+                        <input type="email" id="senderEmail" class="neon-input" placeholder="your-email@example.com" required>
+                        <span class="input-hint">На эту почту придет ответ</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="emailSubject">Тема письма</label>
+                        <input type="text" id="emailSubject" class="neon-input" placeholder="Тема сообщения" value="Обращение через anonimka.online">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="emailMessage">Сообщение *</label>
+                        <textarea id="emailMessage" class="neon-textarea" placeholder="Опишите ваш вопрос или проблему..." rows="8" required></textarea>
+                        <span class="input-hint">Минимум 10 символов</span>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="neon-button secondary" onclick="showContacts()">
+                            🔙 Отмена
+                        </button>
+                        <button type="submit" class="neon-button primary" id="sendEmailBtn">
+                            📧 Отправить письмо
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="emailStatus" class="email-status" style="display: none;">
+                    <!-- Статус отправки будет показан здесь -->
                 </div>
             </div>
         </div>
