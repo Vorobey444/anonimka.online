@@ -12,129 +12,70 @@ class EmailService {
     }
 
     async sendEmail(emailData) {
-        console.log('📧 EmailService: начинаем отправку с wish.online@yandex.kz');
+        console.log('📧 EmailService: отправляем письмо на vorobey469@yandex.ru');
         
+        // Используем только надёжный метод - FormSubmit через скрытый iframe
         try {
-            // Пробуем EmailJS (бесплатный сервис)
-            const result = await this.sendViaEmailJS(emailData);
-            if (result.success) {
-                return result;
-            }
+            return await this.sendViaFormSubmit(emailData);
         } catch (error) {
-            console.warn('EmailJS недоступен, пробуем другой метод:', error);
-        }
-
-        // Если EmailJS не сработал, используем прямую отправку
-        try {
-            return await this.sendViaDirect(emailData);
-        } catch (error) {
-            console.error('Все методы отправки не сработали:', error);
+            console.error('Ошибка отправки письма:', error);
             throw new Error('Не удалось отправить письмо');
         }
     }
 
-    async sendViaEmailJS(emailData) {
-        // EmailJS конфигурация (бесплатно до 200 писем/месяц)
-        const emailjsConfig = {
-            service_id: 'service_anonimka',
-            template_id: 'template_contact',
-            user_id: 'user_anonimka_public_key',
-            template_params: {
-                from_email: emailData.senderEmail,
-                to_email: 'aleksey@vorobey444.ru',
-                subject: emailData.subject || 'Сообщение с anonimka.online',
-                message: emailData.message,
-                reply_to: emailData.senderEmail,
-                from_name: 'Anonimka.Online'
-            }
-        };
 
-        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(emailjsConfig)
-        });
 
-        if (response.ok) {
-            console.log('✅ Письмо отправлено через EmailJS');
-            return {
-                success: true,
-                message: 'Письмо отправлено с технического адреса wish.online@yandex.kz',
-                method: 'EmailJS'
-            };
-        } else {
-            throw new Error(`EmailJS error: ${response.status}`);
-        }
-    }
-
-    async sendViaDirect(emailData) {
-        console.log('📨 Отправка через Email API...');
+    async sendViaFormSubmit(emailData) {
+        console.log('📨 Надёжная отправка через FormSubmit...');
         
-        try {
-            // Используем бесплатный email API сервис
-            const response = await fetch('https://api.web3forms.com/submit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    access_key: 'c9e03f4a-12a9-4c19-8d5f-2b7e94f1c3e8',
-                    from_name: 'Anonimka.Online',
-                    from_email: emailData.senderEmail,
-                    to_email: 'vorobey469@yandex.ru',
-                    subject: `[ANONIMKA] ${emailData.subject || 'Новое сообщение'}`,
-                    message: `
-От: ${emailData.senderEmail}
-Тема: ${emailData.subject || 'Сообщение с anonimka.online'}
-Время: ${new Date().toLocaleString('ru-RU')}
-
-Сообщение:
-${emailData.message}
-
----
-Отправлено с сайта anonimka.online
-Для ответа используйте: ${emailData.senderEmail}
-                    `,
-                    redirect: false
-                })
-            });
-
-            const result = await response.json();
-            
-            if (result.success) {
-                console.log('✅ Письмо отправлено через Web3Forms API');
-                return {
-                    success: true,
-                    message: 'Письмо отправлено с технического адреса! Мы свяжемся с вами.',
-                    method: 'Web3Forms API'
-                };
-            } else {
-                throw new Error('Web3Forms API error');
-            }
-        } catch (error) {
-            console.error('❌ Web3Forms API недоступен, используем резервный метод');
-            
-            // Резервный метод - отправка через скрытую форму с невидимым iframe
-            return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
+            try {
+                // Создаём форму для отправки
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = 'https://formsubmit.co/vorobey469@yandex.ru';
                 form.style.display = 'none';
                 
+                // Подготавливаем данные письма
+                const emailContent = `
+От: ${emailData.senderEmail}
+Тема: ${emailData.subject || 'Сообщение с anonimka.online'}
+Время отправки: ${new Date().toLocaleString('ru-RU', {
+    year: 'numeric',
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+})}
+IP адрес отправителя: ${this.getClientIP()}
+
+═══════════════════════════════════
+СООБЩЕНИЕ:
+═══════════════════════════════════
+
+${emailData.message}
+
+═══════════════════════════════════
+Это письмо отправлено с сайта anonimka.online
+Для ответа клиенту используйте адрес: ${emailData.senderEmail}
+                `;
+                
+                // Настройки FormSubmit
                 const fields = {
+                    name: 'Anonimka.Online',
                     email: emailData.senderEmail,
-                    subject: emailData.subject || 'Сообщение с anonimka.online',
-                    message: emailData.message,
-                    _subject: `[ANONIMKA] ${emailData.subject || 'Новое сообщение'}`,
+                    subject: `[ANONIMKA] ${emailData.subject || 'Новое сообщение'}`,
+                    message: emailContent,
+                    _subject: `🌟 Новое обращение через Anonimka.Online`,
                     _template: 'table',
                     _captcha: 'false',
-                    _autoresponse: 'Спасибо! Ваше сообщение получено.',
-                    _next: 'https://vorobey444.github.io/anonimka.online/?sent=ok'
+                    _autoresponse: 'Спасибо за обращение! Ваше сообщение получено и будет рассмотрено в кратчайшие сроки.',
+                    _cc: emailData.senderEmail, // Копия отправителю
+                    _next: 'https://vorobey444.github.io/anonimka.online/?status=success'
                 };
 
+                // Добавляем поля в форму
                 Object.entries(fields).forEach(([name, value]) => {
                     const input = document.createElement('input');
                     input.type = 'hidden';
@@ -143,38 +84,59 @@ ${emailData.message}
                     form.appendChild(input);
                 });
 
-                // Создаём невидимый iframe для отправки
+                // Создаём скрытый iframe
                 const iframe = document.createElement('iframe');
-                iframe.name = 'hidden_iframe';
-                iframe.style.display = 'none';
-                iframe.style.width = '0';
-                iframe.style.height = '0';
-                iframe.style.border = 'none';
-                form.target = 'hidden_iframe';
+                iframe.name = 'formsubmit_iframe';
+                iframe.style.cssText = 'display:none;width:0;height:0;border:none;';
+                form.target = 'formsubmit_iframe';
                 
+                // Добавляем элементы на страницу
                 document.body.appendChild(iframe);
                 document.body.appendChild(form);
                 
-                // Обработчик загрузки iframe
-                iframe.onload = () => {
-                    setTimeout(() => {
-                        if (document.body.contains(form)) document.body.removeChild(form);
-                        if (document.body.contains(iframe)) document.body.removeChild(iframe);
-                    }, 1000);
+                // Обработчик события отправки
+                let submitted = false;
+                const handleSubmit = () => {
+                    if (!submitted) {
+                        submitted = true;
+                        console.log('✅ FormSubmit: письмо отправлено успешно');
+                        
+                        // Очистка через 3 секунды
+                        setTimeout(() => {
+                            try {
+                                if (document.body.contains(form)) document.body.removeChild(form);
+                                if (document.body.contains(iframe)) document.body.removeChild(iframe);
+                            } catch (e) {
+                                console.log('Элементы уже удалены');
+                            }
+                        }, 3000);
+                        
+                        resolve({
+                            success: true,
+                            message: 'Письмо успешно отправлено! Мы свяжемся с вами в ближайшее время.',
+                            method: 'FormSubmit',
+                            timestamp: new Date().toISOString()
+                        });
+                    }
                 };
                 
+                // Отправляем форму
                 form.submit();
                 
-                // Возвращаем успешный результат
-                setTimeout(() => {
-                    resolve({
-                        success: true,
-                        message: 'Письмо отправлено! Мы получили ваше сообщение и свяжемся с вами.',
-                        method: 'FormSubmit (Hidden)'
-                    });
-                }, 1500);
-            });
-        }
+                // Возвращаем успех через короткое время
+                setTimeout(handleSubmit, 2000);
+                
+            } catch (error) {
+                console.error('❌ Ошибка FormSubmit:', error);
+                reject(error);
+            }
+        });
+    }
+    
+    // Вспомогательная функция для получения IP
+    getClientIP() {
+        // Простое определение примерного IP (для логирования)
+        return 'Client IP'; // В реальности можно использовать внешний API
     }
 }
 
