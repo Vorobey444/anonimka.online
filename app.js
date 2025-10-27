@@ -2533,9 +2533,7 @@ function showEmailStatus(type, message) {
 async function sendEmailToBackend(emailData) {
     try {
         // Определяем URL бэкенда
-        const backendUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:5000/send-email'
-            : '/api/send-email';
+        const backendUrl = 'http://localhost:5000/send-email'; // Всегда используем локальный сервер
         
         const response = await fetch(backendUrl, {
             method: 'POST',
