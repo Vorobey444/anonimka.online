@@ -2119,6 +2119,42 @@ function showEmailForm() {
     
     // Показываем инструкцию как начать
     showEmailStatus('loading', '💡 Заполните форму ниже. При отправке письмо будет автоматически переслано с технического ящика wish.online@yandex.kz');
+    
+    // Убеждаемся, что обработчики событий подключены
+    setTimeout(() => {
+        setupEmailFormHandlers();
+    }, 100);
+}
+
+// Отдельная функция для настройки обработчиков формы
+function setupEmailFormHandlers() {
+    const contactForm = document.getElementById('contactForm');
+    const sendBtn = document.getElementById('sendEmailBtn');
+    
+    console.log('setupEmailFormHandlers вызвана');
+    console.log('contactForm найдена:', !!contactForm);
+    console.log('sendBtn найдена:', !!sendBtn);
+    
+    if (contactForm) {
+        // Удаляем старые обработчики и добавляем новые
+        contactForm.removeEventListener('submit', handleEmailSubmit);
+        contactForm.addEventListener('submit', handleEmailSubmit);
+        console.log('Обработчик submit добавлен к форме');
+    }
+    
+    if (sendBtn) {
+        // Удаляем старые обработчики и добавляем новые
+        sendBtn.removeEventListener('click', handleEmailButtonClick);
+        sendBtn.addEventListener('click', handleEmailButtonClick);
+        console.log('Обработчик click добавлен к кнопке');
+    }
+}
+
+// Отдельный обработчик для кнопки
+function handleEmailButtonClick(event) {
+    event.preventDefault();
+    console.log('handleEmailButtonClick вызвана');
+    handleEmailSubmit(event);
 }
 
 function showRules() {
@@ -2253,10 +2289,40 @@ function setupContactsEventListeners() {
     // Добавляем обработчик для формы отправки письма
     const contactForm = document.getElementById('contactForm');
     if (contactForm) {
+        console.log('Найдена форма contactForm, добавляем обработчик');
         contactForm.addEventListener('submit', handleEmailSubmit);
+        
+        // Дополнительно добавляем обработчик на кнопку
+        const sendBtn = document.getElementById('sendEmailBtn');
+        if (sendBtn) {
+            console.log('Найдена кнопка sendEmailBtn, добавляем обработчик клика');
+            sendBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Клик по кнопке отправки письма');
+                handleEmailSubmit(e);
+            });
+        }
+    } else {
+        console.log('Форма contactForm не найдена');
+        // Пробуем найти через таймаут
+        setTimeout(() => {
+            const form = document.getElementById('contactForm');
+            if (form) {
+                console.log('Форма найдена через таймаут, добавляем обработчик');
+                form.addEventListener('submit', handleEmailSubmit);
+                
+                const btn = document.getElementById('sendEmailBtn');
+                if (btn) {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        handleEmailSubmit(e);
+                    });
+                }
+            }
+        }, 1000);
     }
     
-    // Добавляем обработчики событий для контактов
+    // Добавляем обработчики событий для Telegram контакта
     const telegramContact = document.querySelector('.contact-item[onclick*="openTelegramChat"]');
     
     if (telegramContact) {
@@ -2272,6 +2338,7 @@ function setupContactsEventListeners() {
 // Обработчик отправки письма
 async function handleEmailSubmit(event) {
     event.preventDefault();
+    console.log('handleEmailSubmit вызвана');
     
     const senderEmail = document.getElementById('senderEmail').value.trim();
     const subject = document.getElementById('emailSubject').value.trim();
@@ -2279,66 +2346,73 @@ async function handleEmailSubmit(event) {
     const statusDiv = document.getElementById('emailStatus');
     const sendBtn = document.getElementById('sendEmailBtn');
     
+    console.log('Данные формы:', { senderEmail, subject, message });
+    
     // Валидация
     if (!senderEmail || !message) {
+        console.log('Валидация не прошла: пустые поля');
         showEmailStatus('error', '❌ Пожалуйста, заполните все обязательные поля');
         return;
     }
     
     if (message.length < 10) {
+        console.log('Валидация не прошла: короткое сообщение');
         showEmailStatus('error', '❌ Сообщение должно содержать минимум 10 символов');
         return;
     }
+    
+    console.log('Валидация прошла успешно');
     
     // Показываем загрузку
     showEmailStatus('loading', '📤 Отправляем письмо...');
     sendBtn.disabled = true;
     
     try {
-        // Отправляем через бэкенд
-        const response = await sendEmailToBackend({
+        console.log('Начинаем отправку через бэкенд');
+        // Сразу используем альтернативный способ (mailto)
+        const response = await sendEmailViaMailto({
             senderEmail,
             subject: subject || 'Обращение через anonimka.online',
             message
         });
         
+        console.log('Результат отправки:', response);
+        
         if (response.success) {
-            showEmailStatus('success', '✅ Письмо успешно отправлено! Ответ придет на указанную почту.');
-            // Очищаем форму при успехе
-            document.getElementById('contactForm').reset();
-            document.getElementById('emailSubject').value = 'Обращение через anonimka.online';
-        } else {
-            showEmailStatus('error', `❌ Ошибка отправки: ${response.error || 'Неизвестная ошибка'}`);
-            
-            // Показываем дополнительную кнопку для ручной отправки
+            showEmailStatus('success', '✅ Почтовый клиент открыт! Если письмо не открылось автоматически, скопируйте данные ниже и отправьте вручную.');
+            // Показываем дополнительную информацию
             setTimeout(() => {
-                showManualEmailOption(emailData);
+                showManualEmailOption({ senderEmail, subject, message });
+            }, 3000);
+        } else {
+            showEmailStatus('error', `❌ ${response.error}`);
+            setTimeout(() => {
+                showManualEmailOption({ senderEmail, subject, message });
             }, 2000);
         }
     } catch (error) {
         console.error('Ошибка отправки письма:', error);
-        showEmailStatus('error', '❌ Ошибка соединения. Используем альтернативный способ...');
+        showEmailStatus('error', '❌ Ошибка отправки. Показываю данные для ручной отправки...');
         
-        // Показываем альтернативный способ
         setTimeout(() => {
-            showManualEmailOption(emailData);
+            showManualEmailOption({ senderEmail, subject, message });
         }, 1000);
     } finally {
         sendBtn.disabled = false;
     }
 }
-
 // Показать опцию ручной отправки
 function showManualEmailOption(emailData) {
     const statusDiv = document.getElementById('emailStatus');
     statusDiv.className = 'email-status error';
     statusDiv.innerHTML = `
-        ❌ Автоматическая отправка недоступна
+        📋 <strong>Данные для ручной отправки:</strong>
         <br><br>
-        <strong>📋 Данные для ручной отправки:</strong>
-        <br>На: aleksey@vorobey444.ru
-        <br>От: ${emailData.senderEmail}
-        <br>Тема: ${emailData.subject}
+        <strong>На:</strong> aleksey@vorobey444.ru<br>
+        <strong>От:</strong> ${emailData.senderEmail}<br>
+        <strong>Тема:</strong> ${emailData.subject}<br>
+        <strong>Сообщение:</strong><br>
+        ${emailData.message.replace(/\n/g, '<br>')}
         <br><br>
         <button class="neon-button secondary" onclick="copyEmailData('${emailData.senderEmail}', '${emailData.subject.replace(/'/g, "\\'")}', '${emailData.message.replace(/'/g, "\\'")}')">
             📋 Копировать данные
@@ -2389,6 +2463,10 @@ function openManualMailto(senderEmail, subject, message) {
         }
     });
 }
+
+// Глобальные функции для использования в onclick
+window.copyEmailData = copyEmailData;
+window.openManualMailto = openManualMailto;
 
 // Показать статус отправки
 function showEmailStatus(type, message) {
