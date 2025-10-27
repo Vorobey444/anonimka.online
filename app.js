@@ -2335,72 +2335,95 @@ function setupContactsEventListeners() {
     }
 }
 
-// Обработчик отправки письма
-async function handleEmailSubmit(event) {
-    event.preventDefault();
-    console.log('handleEmailSubmit вызвана');
+// Обработчик отправки письма - ГЛОБАЛЬНАЯ ФУНКЦИЯ
+window.handleEmailSubmit = function(event) {
+    if (event) event.preventDefault();
+    console.log('🚀 handleEmailSubmit вызвана - РАБОТАЕТ!');
     
-    const senderEmail = document.getElementById('senderEmail').value.trim();
-    const subject = document.getElementById('emailSubject').value.trim();
-    const message = document.getElementById('emailMessage').value.trim();
-    const statusDiv = document.getElementById('emailStatus');
+    const senderEmail = document.getElementById('senderEmail');
+    const subject = document.getElementById('emailSubject');
+    const message = document.getElementById('emailMessage');
     const sendBtn = document.getElementById('sendEmailBtn');
     
-    console.log('Данные формы:', { senderEmail, subject, message });
+    console.log('Элементы формы:', {
+        senderEmail: !!senderEmail,
+        subject: !!subject, 
+        message: !!message,
+        sendBtn: !!sendBtn
+    });
+    
+    if (!senderEmail || !subject || !message) {
+        console.error('❌ Не найдены элементы формы!');
+        alert('Ошибка: элементы формы не найдены');
+        return;
+    }
+    
+    const emailValue = senderEmail.value.trim();
+    const subjectValue = subject.value.trim();
+    const messageValue = message.value.trim();
+    
+    console.log('Значения полей:', { emailValue, subjectValue, messageValue });
     
     // Валидация
-    if (!senderEmail || !message) {
-        console.log('Валидация не прошла: пустые поля');
+    if (!emailValue || !messageValue) {
+        console.log('❌ Валидация не прошла: пустые поля');
         showEmailStatus('error', '❌ Пожалуйста, заполните все обязательные поля');
         return;
     }
     
-    if (message.length < 10) {
-        console.log('Валидация не прошла: короткое сообщение');
-        showEmailStatus('error', '❌ Сообщение должно содержать минимум 10 символов');
+    if (messageValue.length < 3) {
+        console.log('❌ Валидация не прошла: короткое сообщение');
+        showEmailStatus('error', '❌ Сообщение должно содержать минимум 3 символа');
         return;
     }
     
-    console.log('Валидация прошла успешно');
+    console.log('✅ Валидация прошла успешно');
     
     // Показываем загрузку
-    showEmailStatus('loading', '📤 Отправляем письмо...');
-    sendBtn.disabled = true;
+    showEmailStatus('loading', '📤 Открываем почтовый клиент...');
+    if (sendBtn) sendBtn.disabled = true;
     
     try {
-        console.log('Начинаем отправку через бэкенд');
-        // Сразу используем альтернативный способ (mailto)
-        const response = await sendEmailViaMailto({
-            senderEmail,
-            subject: subject || 'Обращение через anonimka.online',
-            message
-        });
+        console.log('📧 Открываем mailto...');
         
-        console.log('Результат отправки:', response);
+        const emailData = {
+            senderEmail: emailValue,
+            subject: subjectValue || 'Обращение через anonimka.online',
+            message: messageValue
+        };
         
-        if (response.success) {
-            showEmailStatus('success', '✅ Почтовый клиент открыт! Если письмо не открылось автоматически, скопируйте данные ниже и отправьте вручную.');
-            // Показываем дополнительную информацию
-            setTimeout(() => {
-                showManualEmailOption({ senderEmail, subject, message });
-            }, 3000);
-        } else {
-            showEmailStatus('error', `❌ ${response.error}`);
-            setTimeout(() => {
-                showManualEmailOption({ senderEmail, subject, message });
-            }, 2000);
-        }
-    } catch (error) {
-        console.error('Ошибка отправки письма:', error);
-        showEmailStatus('error', '❌ Ошибка отправки. Показываю данные для ручной отправки...');
+        // Простой mailto
+        const subject_encoded = encodeURIComponent(`[anonimka.online] ${emailData.subject}`);
+        const body_encoded = encodeURIComponent(`От: ${emailData.senderEmail}
+Сообщение с сайта anonimka.online
+
+${emailData.message}
+
+---
+Пожалуйста, отвечайте на адрес: ${emailData.senderEmail}
+Время отправки: ${new Date().toLocaleString('ru-RU')}`);
+
+        const mailtoLink = `mailto:aleksey@vorobey444.ru?subject=${subject_encoded}&body=${body_encoded}`;
         
+        console.log('📧 Mailto ссылка создана:', mailtoLink);
+        
+        // Открываем почтовый клиент
+        window.open(mailtoLink, '_blank');
+        
+        showEmailStatus('success', '✅ Почтовый клиент открыт! Если письмо не открылось, данные для ручной отправки ниже:');
+        
+        // Показываем данные для ручной отправки
         setTimeout(() => {
-            showManualEmailOption({ senderEmail, subject, message });
-        }, 1000);
+            showManualEmailOption(emailData);
+        }, 2000);
+        
+    } catch (error) {
+        console.error('❌ Ошибка:', error);
+        showEmailStatus('error', '❌ Ошибка открытия почтового клиента');
     } finally {
-        sendBtn.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
     }
-}
+};
 // Показать опцию ручной отправки
 function showManualEmailOption(emailData) {
     const statusDiv = document.getElementById('emailStatus');
@@ -2467,6 +2490,23 @@ function openManualMailto(senderEmail, subject, message) {
 // Глобальные функции для использования в onclick
 window.copyEmailData = copyEmailData;
 window.openManualMailto = openManualMailto;
+
+// Тестовая функция
+window.testFunction = function() {
+    console.log('🧪 Тест функции сработал!');
+    alert('Тест работает! Проверьте консоль.');
+    
+    // Тестируем основную функцию
+    const senderEmailEl = document.getElementById('senderEmail');
+    const subjectEl = document.getElementById('emailSubject');
+    const messageEl = document.getElementById('emailMessage');
+    
+    if (senderEmailEl) senderEmailEl.value = 'test@example.com';
+    if (subjectEl) subjectEl.value = 'Тестовое сообщение';
+    if (messageEl) messageEl.value = 'Это тестовое сообщение для проверки работы формы';
+    
+    console.log('Форма заполнена тестовыми данными');
+};
 
 // Показать статус отправки
 function showEmailStatus(type, message) {
