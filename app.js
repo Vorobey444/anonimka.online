@@ -2581,19 +2581,24 @@ async function sendEmailToBackend(emailData) {
             return result;
         }
         
-        // Для продакшена используем простое Telegram решение  
-        console.log('📧 Продакшен: отправляем через Telegram...');
+        // Для продакшена используем FormSubmit (как в рабочем проекте)
+        console.log('📧 Продакшен: отправляем через FormSubmit...');
         
-        if (tg && tg.sendData) {
-            console.log('Отправляем через Telegram Web App');
-            tg.sendData(JSON.stringify({
-                action: 'sendEmail',
-                data: emailData
-            }));
-            
-            return { success: true, message: 'Отправлено через Telegram' };
+        const formData = new FormData();
+        formData.append('email', emailData.senderEmail);
+        formData.append('subject', emailData.subject || 'Сообщение с anonimka.online');
+        formData.append('message', emailData.message);
+        
+        const response = await fetch('https://formsubmit.co/aleksey@vorobey444.ru', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            console.log('✅ Письмо отправлено через FormSubmit');
+            return { success: true, message: 'Письмо успешно отправлено' };
         } else {
-            throw new Error('Telegram Web App недоступен');
+            throw new Error('Ошибка отправки через FormSubmit');
         }
     } catch (error) {
         console.log('Бэкенд недоступен, используем альтернативный способ');
