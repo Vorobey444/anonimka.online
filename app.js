@@ -2109,6 +2109,15 @@ function showContacts() {
     updateActiveMenuItem('contacts');
 }
 
+function showEmailForm() {
+    showScreen('emailForm');
+    // Очищаем форму при открытии
+    document.getElementById('senderEmail').value = '';
+    document.getElementById('emailSubject').value = 'Обращение через anonimka.online';
+    document.getElementById('emailMessage').value = '';
+    document.getElementById('emailStatus').style.display = 'none';
+}
+
 function showRules() {
     closeHamburgerMenu();
     showScreen('rules');
@@ -2238,18 +2247,14 @@ function openTelegramChat() {
 function setupContactsEventListeners() {
     console.log('Настройка обработчиков контактов');
     
-    // Добавляем обработчики событий для контактов
-    const emailContact = document.querySelector('.contact-item[onclick*="openEmailComposer"]');
-    const telegramContact = document.querySelector('.contact-item[onclick*="openTelegramChat"]');
-    
-    if (emailContact) {
-        console.log('Найден элемент email контакта, добавляем обработчик');
-        emailContact.addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('Клик по email контакту');
-            openEmailComposer();
-        });
+    // Добавляем обработчик для формы отправки письма
+    const contactForm = document.getElementById('contactForm');
+    if (contactForm) {
+        contactForm.addEventListener('submit', handleEmailSubmit);
     }
+    
+    // Добавляем обработчики событий для контактов
+    const telegramContact = document.querySelector('.contact-item[onclick*="openTelegramChat"]');
     
     if (telegramContact) {
         console.log('Найден элемент telegram контакта, добавляем обработчик');
@@ -2258,5 +2263,145 @@ function setupContactsEventListeners() {
             console.log('Клик по telegram контакту');
             openTelegramChat();
         });
+    }
+}
+
+// Обработчик отправки письма
+async function handleEmailSubmit(event) {
+    event.preventDefault();
+    
+    const senderEmail = document.getElementById('senderEmail').value.trim();
+    const subject = document.getElementById('emailSubject').value.trim();
+    const message = document.getElementById('emailMessage').value.trim();
+    const statusDiv = document.getElementById('emailStatus');
+    const sendBtn = document.getElementById('sendEmailBtn');
+    
+    // Валидация
+    if (!senderEmail || !message) {
+        showEmailStatus('error', '❌ Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+    
+    if (message.length < 10) {
+        showEmailStatus('error', '❌ Сообщение должно содержать минимум 10 символов');
+        return;
+    }
+    
+    // Показываем загрузку
+    showEmailStatus('loading', '📤 Отправляем письмо...');
+    sendBtn.disabled = true;
+    
+    try {
+        // Отправляем через бэкенд
+        const response = await sendEmailToBackend({
+            senderEmail,
+            subject: subject || 'Обращение через anonimka.online',
+            message
+        });
+        
+        if (response.success) {
+            showEmailStatus('success', '✅ Письмо успешно отправлено! Ответ придет на указанную почту.');
+            // Очищаем форму при успехе
+            document.getElementById('contactForm').reset();
+            document.getElementById('emailSubject').value = 'Обращение через anonimka.online';
+        } else {
+            showEmailStatus('error', `❌ Ошибка отправки: ${response.error || 'Неизвестная ошибка'}`);
+        }
+    } catch (error) {
+        console.error('Ошибка отправки письма:', error);
+        showEmailStatus('error', '❌ Ошибка соединения. Попробуйте позже или используйте Telegram.');
+    } finally {
+        sendBtn.disabled = false;
+    }
+}
+
+// Показать статус отправки
+function showEmailStatus(type, message) {
+    const statusDiv = document.getElementById('emailStatus');
+    statusDiv.className = `email-status ${type}`;
+    
+    if (type === 'loading') {
+        statusDiv.innerHTML = `<div class="loading-spinner"></div>${message}`;
+    } else {
+        statusDiv.innerHTML = message;
+    }
+    
+    statusDiv.style.display = 'block';
+    
+    // Автоматически скрываем сообщение через 5 секунд (кроме ошибок)
+    if (type === 'success') {
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
+}
+
+// Отправка письма на бэкенд
+async function sendEmailToBackend(emailData) {
+    try {
+        // Определяем URL бэкенда
+        const backendUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:5000/send-email'
+            : '/api/send-email';
+        
+        const response = await fetch(backendUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(emailData)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.log('Бэкенд недоступен, используем альтернативный способ');
+        
+        // Если бэкенд недоступен, используем Telegram Bot API
+        return await sendEmailViaTelegram(emailData);
+    }
+}
+
+// Альтернативная отправка через Telegram бота
+async function sendEmailViaTelegram(emailData) {
+    try {
+        const message = `📧 Новое сообщение с anonimka.online
+
+От: ${emailData.senderEmail}
+Тема: ${emailData.subject}
+
+${emailData.message}
+
+---
+Время: ${new Date().toLocaleString('ru-RU')}`;
+
+        // Отправляем через Telegram Web App, если доступен
+        if (tg && tg.sendData) {
+            tg.sendData(JSON.stringify({
+                action: 'sendEmail',
+                data: {
+                    senderEmail: emailData.senderEmail,
+                    subject: emailData.subject,
+                    message: emailData.message
+                }
+            }));
+            
+            return {
+                success: true,
+                message: 'Сообщение отправлено через Telegram'
+            };
+        } else {
+            // Если Telegram Web App недоступен, показываем данные для ручной отправки
+            throw new Error('Сервис временно недоступен');
+        }
+    } catch (error) {
+        console.error('Ошибка альтернативной отправки:', error);
+        return {
+            success: false,
+            error: 'Сервис временно недоступен. Попробуйте использовать Telegram или повторите попытку позже.'
+        };
     }
 }
