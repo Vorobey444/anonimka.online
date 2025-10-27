@@ -2336,7 +2336,7 @@ function setupContactsEventListeners() {
 }
 
 // Обработчик отправки письма - ГЛОБАЛЬНАЯ ФУНКЦИЯ
-window.handleEmailSubmit = function(event) {
+window.handleEmailSubmit = async function(event) {
     if (event) event.preventDefault();
     console.log('🚀 handleEmailSubmit вызвана - РАБОТАЕТ!');
     
@@ -2380,19 +2380,43 @@ window.handleEmailSubmit = function(event) {
     console.log('✅ Валидация прошла успешно');
     
     // Показываем загрузку
-    showEmailStatus('loading', '📤 Открываем почтовый клиент...');
+    showEmailStatus('loading', '📤 Отправляем письмо...');
     if (sendBtn) sendBtn.disabled = true;
     
     try {
-        console.log('📧 Открываем mailto...');
-        
         const emailData = {
             senderEmail: emailValue,
             subject: subjectValue || 'Обращение через anonimka.online',
             message: messageValue
         };
         
-        // Простой mailto
+        console.log('📧 Пытаемся отправить через бэкенд...');
+        
+        // Сначала пытаемся отправить через бэкенд
+        const result = await sendEmailToBackend(emailData);
+        
+        // Если бэкенд сработал успешно
+        if (result && result.success) {
+            console.log('✅ Письмо отправлено через бэкенд!');
+            showEmailStatus('success', '✅ Письмо успешно отправлено!');
+            
+            // Очищаем форму
+            document.getElementById('senderEmail').value = '';
+            document.getElementById('emailSubject').value = 'Обращение через anonimka.online';
+            document.getElementById('emailMessage').value = '';
+            
+            return; // Выходим из функции, не переходя к mailto
+        }
+        
+        // Если бэкенд не сработал, fallback не нужен для localhost
+        // (ошибка будет обработана в catch блоке)
+        
+    } catch (error) {
+        console.error('❌ Ошибка при отправке через бэкенд:', error);
+        
+        // Fallback: открываем mailto
+        console.log('📧 Переходим к mailto fallback...');
+        
         const subject_encoded = encodeURIComponent(`[anonimka.online] ${emailData.subject}`);
         const body_encoded = encodeURIComponent(`От: ${emailData.senderEmail}
 Сообщение с сайта anonimka.online
@@ -2416,10 +2440,6 @@ ${emailData.message}
         setTimeout(() => {
             showManualEmailOption(emailData);
         }, 2000);
-        
-    } catch (error) {
-        console.error('❌ Ошибка:', error);
-        showEmailStatus('error', '❌ Ошибка открытия почтового клиента');
     } finally {
         if (sendBtn) sendBtn.disabled = false;
     }
@@ -2533,23 +2553,39 @@ function showEmailStatus(type, message) {
 async function sendEmailToBackend(emailData) {
     try {
         // Определяем URL бэкенда
-        const backendUrl = 'http://localhost:5000/send-email'; // Всегда используем локальный сервер
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        console.log('Текущий хост:', window.location.hostname);
+        console.log('Это localhost?', isLocalhost);
         
-        const response = await fetch(backendUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(emailData)
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+        // Для локального тестирования используем Flask сервер
+        if (isLocalhost) {
+            const backendUrl = 'http://localhost:5000/send-email';
+            console.log('Отправляем запрос на Flask сервер:', backendUrl);
+            console.log('Данные для отправки:', emailData);
+            
+            const response = await fetch(backendUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(emailData)
+            });
+            
+            if (!response.ok) {
+                console.error('Ошибка HTTP:', response.status, response.statusText);
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const result = await response.json();
+            console.log('Успешный ответ от сервера:', result);
+            return result;
         }
         
-        return await response.json();
+        // Для продакшена используем прямое решение без бэкенда
+        throw new Error('Используем fallback для продакшена');
     } catch (error) {
         console.log('Бэкенд недоступен, используем альтернативный способ');
+        console.error('Ошибка при отправке на бэкенд:', error);
         
         // Если бэкенд недоступен, используем Telegram Bot API
         return await sendEmailViaTelegram(emailData);
