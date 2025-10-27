@@ -2116,6 +2116,9 @@ function showEmailForm() {
     document.getElementById('emailSubject').value = 'Обращение через anonimka.online';
     document.getElementById('emailMessage').value = '';
     document.getElementById('emailStatus').style.display = 'none';
+    
+    // Показываем инструкцию как начать
+    showEmailStatus('loading', '💡 Заполните форму ниже. При отправке письмо будет автоматически переслано с технического ящика wish.online@yandex.kz');
 }
 
 function showRules() {
@@ -2306,13 +2309,85 @@ async function handleEmailSubmit(event) {
             document.getElementById('emailSubject').value = 'Обращение через anonimka.online';
         } else {
             showEmailStatus('error', `❌ Ошибка отправки: ${response.error || 'Неизвестная ошибка'}`);
+            
+            // Показываем дополнительную кнопку для ручной отправки
+            setTimeout(() => {
+                showManualEmailOption(emailData);
+            }, 2000);
         }
     } catch (error) {
         console.error('Ошибка отправки письма:', error);
-        showEmailStatus('error', '❌ Ошибка соединения. Попробуйте позже или используйте Telegram.');
+        showEmailStatus('error', '❌ Ошибка соединения. Используем альтернативный способ...');
+        
+        // Показываем альтернативный способ
+        setTimeout(() => {
+            showManualEmailOption(emailData);
+        }, 1000);
     } finally {
         sendBtn.disabled = false;
     }
+}
+
+// Показать опцию ручной отправки
+function showManualEmailOption(emailData) {
+    const statusDiv = document.getElementById('emailStatus');
+    statusDiv.className = 'email-status error';
+    statusDiv.innerHTML = `
+        ❌ Автоматическая отправка недоступна
+        <br><br>
+        <strong>📋 Данные для ручной отправки:</strong>
+        <br>На: aleksey@vorobey444.ru
+        <br>От: ${emailData.senderEmail}
+        <br>Тема: ${emailData.subject}
+        <br><br>
+        <button class="neon-button secondary" onclick="copyEmailData('${emailData.senderEmail}', '${emailData.subject.replace(/'/g, "\\'")}', '${emailData.message.replace(/'/g, "\\'")}')">
+            📋 Копировать данные
+        </button>
+        <button class="neon-button primary" onclick="openManualMailto('${emailData.senderEmail}', '${emailData.subject.replace(/'/g, "\\'")}', '${emailData.message.replace(/'/g, "\\'")}')">
+            📧 Открыть почту
+        </button>
+    `;
+}
+
+// Копировать данные письма
+function copyEmailData(senderEmail, subject, message) {
+    const emailText = `На: aleksey@vorobey444.ru
+От: ${senderEmail}
+Тема: ${subject}
+
+${message}`;
+
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(emailText).then(() => {
+            showEmailStatus('success', '✅ Данные письма скопированы в буфер обмена');
+        });
+    } else {
+        // Fallback для старых браузеров
+        const textArea = document.createElement('textarea');
+        textArea.value = emailText;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showEmailStatus('success', '✅ Данные письма скопированы в буфер обмена');
+    }
+}
+
+// Открыть почтовый клиент вручную
+function openManualMailto(senderEmail, subject, message) {
+    const mailtoData = {
+        senderEmail,
+        subject,
+        message
+    };
+    
+    sendEmailViaMailto(mailtoData).then(result => {
+        if (result.success) {
+            showEmailStatus('success', result.message);
+        } else {
+            showEmailStatus('error', result.error);
+        }
+    });
 }
 
 // Показать статус отправки
@@ -2365,21 +2440,12 @@ async function sendEmailToBackend(emailData) {
     }
 }
 
-// Альтернативная отправка через Telegram бота
+// Альтернативная отправка через Telegram бота или mailto
 async function sendEmailViaTelegram(emailData) {
     try {
-        const message = `📧 Новое сообщение с anonimka.online
-
-От: ${emailData.senderEmail}
-Тема: ${emailData.subject}
-
-${emailData.message}
-
----
-Время: ${new Date().toLocaleString('ru-RU')}`;
-
-        // Отправляем через Telegram Web App, если доступен
+        // Сначала пробуем через Telegram Web App
         if (tg && tg.sendData) {
+            console.log('Отправляем через Telegram Web App');
             tg.sendData(JSON.stringify({
                 action: 'sendEmail',
                 data: {
@@ -2391,17 +2457,46 @@ ${emailData.message}
             
             return {
                 success: true,
-                message: 'Сообщение отправлено через Telegram'
+                message: 'Сообщение отправлено через Telegram бота'
             };
         } else {
-            // Если Telegram Web App недоступен, показываем данные для ручной отправки
-            throw new Error('Сервис временно недоступен');
+            console.log('Telegram Web App недоступен, используем mailto');
+            // Используем стандартный mailto как последний вариант
+            return sendEmailViaMailto(emailData);
         }
     } catch (error) {
-        console.error('Ошибка альтернативной отправки:', error);
+        console.error('Ошибка Telegram отправки:', error);
+        return sendEmailViaMailto(emailData);
+    }
+}
+
+// Отправка через стандартный mailto
+async function sendEmailViaMailto(emailData) {
+    try {
+        const subject = encodeURIComponent(`[anonimka.online] ${emailData.subject}`);
+        const body = encodeURIComponent(`От: ${emailData.senderEmail}
+Сообщение с сайта anonimka.online
+
+${emailData.message}
+
+---
+Пожалуйста, отвечайте на адрес: ${emailData.senderEmail}
+Время отправки: ${new Date().toLocaleString('ru-RU')}`);
+
+        const mailtoLink = `mailto:aleksey@vorobey444.ru?subject=${subject}&body=${body}`;
+        
+        // Открываем почтовый клиент
+        window.open(mailtoLink, '_blank');
+        
+        return {
+            success: true,
+            message: 'Открыт почтовый клиент для отправки. Если письмо не открылось автоматически, скопируйте данные и отправьте вручную.'
+        };
+    } catch (error) {
+        console.error('Ошибка mailto:', error);
         return {
             success: false,
-            error: 'Сервис временно недоступен. Попробуйте использовать Telegram или повторите попытку позже.'
+            error: 'Не удалось открыть почтовый клиент. Отправьте письмо вручную на aleksey@vorobey444.ru'
         };
     }
 }
