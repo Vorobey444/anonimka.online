@@ -427,6 +427,23 @@ function resetForm() {
     showStep(1);
 }
 
+// Функция загрузки Email Service
+async function loadEmailService() {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = './email-service.js';
+        script.onload = () => {
+            console.log('✅ Email Service загружен');
+            resolve();
+        };
+        script.onerror = () => {
+            console.error('❌ Ошибка загрузки Email Service');
+            reject(new Error('Failed to load Email Service'));
+        };
+        document.head.appendChild(script);
+    });
+}
+
 // Обработка данных от бота
 tg.onEvent('web_app_data_received', function(data) {
     try {
@@ -2583,72 +2600,17 @@ async function sendEmailToBackend(emailData) {
             return result;
         }
         
-        // Для продакшена используем Netlify Functions
-        console.log('📧 Продакшен: отправляем через ваш технический адрес...');
+        // Для продакшена используем улучшенный Email Service
+        console.log('📧 Продакшен: отправляем через Email Service...');
         
-        try {
-            // Отправляем через Netlify Function с Yandex SMTP
-            const netlifyUrl = 'https://anonimka-online.netlify.app/.netlify/functions/send-email';
-            
-            const response = await fetch(netlifyUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    senderEmail: emailData.senderEmail,
-                    subject: emailData.subject || 'Сообщение с anonimka.online',
-                    message: emailData.message
-                })
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ Письмо отправлено с wish.online@yandex.kz');
-                return result;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ Ошибка Netlify Function:', response.status, errorText);
-                throw new Error(`Netlify Function: ${response.status}`);
-            }
-        } catch (netlifyError) {
-            console.error('❌ Ошибка Netlify, используем Fallback...');
-            
-            // Fallback - используем FormSubmit как резерв
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = 'https://formsubmit.co/fcf09353b37b403a284cb92319e01a0b';
-            form.target = '_blank';
-            form.style.display = 'none';
-            
-            const emailField = document.createElement('input');
-            emailField.name = 'email';
-            emailField.value = emailData.senderEmail;
-            form.appendChild(emailField);
-            
-            const subjectField = document.createElement('input');
-            subjectField.name = 'subject';
-            subjectField.value = emailData.subject || 'Сообщение с anonimka.online';
-            form.appendChild(subjectField);
-            
-            const messageField = document.createElement('textarea');
-            messageField.name = 'message';
-            messageField.value = emailData.message;
-            form.appendChild(messageField);
-            
-            const captchaField = document.createElement('input');
-            captchaField.name = '_captcha';
-            captchaField.value = 'false';
-            form.appendChild(captchaField);
-            
-            document.body.appendChild(form);
-            form.submit();
-            
-            setTimeout(() => document.body.removeChild(form), 1000);
-            
-            console.log('✅ Fallback: письмо отправлено через FormSubmit');
-            return { success: true, message: 'Письмо отправлено (резервный канал)' };
+        // Инициализируем Email Service
+        if (typeof window.EmailService === 'undefined') {
+            console.log('Загружаем Email Service...');
+            await loadEmailService();
         }
+
+        const emailService = new window.EmailService();
+        return await emailService.sendEmail(emailData);
     } catch (error) {
         console.log('Бэкенд недоступен, используем альтернативный способ');
         console.error('Ошибка при отправке на бэкенд:', error);
