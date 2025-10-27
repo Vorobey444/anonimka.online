@@ -2581,27 +2581,19 @@ async function sendEmailToBackend(emailData) {
             return result;
         }
         
-        // Для продакшена используем Supabase Edge Function
-        console.log('📧 Продакшен: отправляем через Supabase...');
+        // Для продакшена используем простое Telegram решение  
+        console.log('📧 Продакшен: отправляем через Telegram...');
         
-        try {
-            const result = await supabase.sendEmail(emailData);
-            console.log('✅ Письмо отправлено через Supabase:', result);
-            return result;
-        } catch (error) {
-            console.log('❌ Supabase недоступен, переходим к Telegram fallback');
+        if (tg && tg.sendData) {
+            console.log('Отправляем через Telegram Web App');
+            tg.sendData(JSON.stringify({
+                action: 'sendEmail',
+                data: emailData
+            }));
             
-            if (tg && tg.sendData) {
-                console.log('Отправляем через Telegram Web App');
-                tg.sendData(JSON.stringify({
-                    action: 'sendEmail',
-                    data: emailData
-                }));
-                
-                return { success: true, message: 'Отправлено через Telegram' };
-            } else {
-                throw new Error('Все методы отправки недоступны');
-            }
+            return { success: true, message: 'Отправлено через Telegram' };
+        } else {
+            throw new Error('Telegram Web App недоступен');
         }
     } catch (error) {
         console.log('Бэкенд недоступен, используем альтернативный способ');
