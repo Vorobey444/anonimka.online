@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTelegramWebApp();
     checkUserLocation();
     setupEventListeners();
+    setupContactsEventListeners();
 });
 
 function initializeTelegramWebApp() {
@@ -2141,36 +2142,121 @@ function updateActiveMenuItem(activeId) {
 
 // Функции для контактов
 function openEmailComposer() {
-    // Создаем скрытую форму для отправки письма от wish.online@yandex.kz
-    const subject = encodeURIComponent('Обращение через Анонимную доску объявлений');
-    const body = encodeURIComponent('Здравствуйте!\n\nПишу вам через анонимную доску объявлений.\n\n[Опишите вашу проблему или вопрос]\n\nС уважением,');
+    console.log('openEmailComposer вызвана');
     
-    // Показываем информацию пользователю о том, как отправить письмо
-    tg.showAlert(`Для отправки письма:
+    // Данные для отправки
+    const recipient = 'aleksey@vorobey444.ru';
+    const senderEmail = 'wish.online@yandex.kz';
+    const subject = 'Обращение через Анонимную доску объявлений';
+    const bodyText = `Здравствуйте!
+
+Пишу вам через анонимную доску объявлений anonimka.online
+
+[Опишите вашу проблему или вопрос]
+
+С уважением,
+[Ваше имя]`;
+
+    // Попытка открыть через Telegram Web App API
+    if (tg && tg.showAlert) {
+        tg.showAlert('Выберите способ отправки письма:', [
+            {
+                text: 'Открыть почтовый клиент',
+                type: 'default'
+            },
+            {
+                text: 'Показать инструкцию',
+                type: 'default'
+            }
+        ]);
+    } else {
+        // Если Telegram Web App недоступен, используем стандартный подход
+        showEmailInstructions();
+    }
+}
+
+function showEmailInstructions() {
+    const recipient = 'aleksey@vorobey444.ru';
+    const senderEmail = 'wish.online@yandex.kz';
+    const password = 'Fjeiekd469!@#';
+    const wishPassKey = 'rowaatbxiunmlunl';
     
-1. Откройте вашу почту (Яндекс.Почта, Gmail и т.д.)
-2. Создайте новое письмо на: aleksey@vorobey444.ru
-3. Тема: "Обращение через Анонимную доску объявлений"
-4. Опишите ваш вопрос или проблему
-    
-Или нажмите OK и мы попробуем открыть почтовый клиент автоматически.`, () => {
-        // Пробуем открыть почтовый клиент
-        const mailtoLink = `mailto:aleksey@vorobey444.ru?subject=${subject}&body=${body}`;
-        window.location.href = mailtoLink;
-    });
+    const instructions = `
+📧 ИНСТРУКЦИЯ ДЛЯ ОТПРАВКИ ПИСЬМА
+
+1️⃣ СПОСОБ 1 - Через ваш почтовый клиент:
+   • Откройте вашу почту (Gmail, Яндекс.Почта и т.д.)
+   • Создайте новое письмо на: ${recipient}
+   • Тема: "Обращение через anonimka.online"
+   • Опишите ваш вопрос
+
+2️⃣ СПОСОБ 2 - Через Яндекс.Почту (рекомендуется):
+   • Адрес: ${senderEmail}
+   • Пароль: ${password}
+   • WishPass ключ: ${wishPassKey}
+   • Получатель: ${recipient}
+
+🔗 Нажмите OK для автоматического открытия почты`;
+
+    if (confirm(instructions)) {
+        // Пробуем открыть mailto ссылку
+        const subject = encodeURIComponent('Обращение через anonimka.online');
+        const body = encodeURIComponent(`Здравствуйте!
+
+Пишу вам через анонимную доску объявлений anonimka.online
+
+[Опишите вашу проблему или вопрос]
+
+С уважением,
+[Ваше имя]`);
+        
+        const mailtoLink = `mailto:${recipient}?subject=${subject}&body=${body}`;
+        window.open(mailtoLink, '_blank');
+    }
 }
 
 function openTelegramChat() {
-    // Открываем чат в Telegram
+    console.log('openTelegramChat вызвана');
+    
     const telegramUrl = 'https://t.me/Vorobey_444';
     
     // Пробуем открыть через Telegram Web App API
-    if (tg.openTelegramLink) {
+    if (tg && tg.openTelegramLink) {
+        console.log('Используем tg.openTelegramLink');
         tg.openTelegramLink(telegramUrl);
-    } else if (tg.openLink) {
+    } else if (tg && tg.openLink) {
+        console.log('Используем tg.openLink');
         tg.openLink(telegramUrl);
     } else {
+        console.log('Используем window.open как fallback');
         // Fallback - обычная ссылка
         window.open(telegramUrl, '_blank');
+    }
+}
+
+// Настройка обработчиков событий для контактов
+function setupContactsEventListeners() {
+    console.log('Настройка обработчиков контактов');
+    
+    // Добавляем обработчики событий для контактов
+    const emailContact = document.querySelector('.contact-item[onclick*="openEmailComposer"]');
+    const telegramContact = document.querySelector('.contact-item[onclick*="openTelegramChat"]');
+    
+    if (emailContact) {
+        console.log('Найден элемент email контакта, добавляем обработчик');
+        emailContact.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Клик по email контакту');
+            openEmailComposer();
+        });
+    }
+    
+    if (telegramContact) {
+        console.log('Найден элемент telegram контакта, добавляем обработчик');
+        telegramContact.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Клик по telegram контакту');
+            openTelegramChat();
+        });
     }
 }
