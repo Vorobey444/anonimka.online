@@ -1626,6 +1626,7 @@ h3 {
     border-radius: 20px;
     box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
     transition: all 0.3s ease;
+    cursor: pointer;
 }
 
 .contact-item:hover {
@@ -1633,9 +1634,17 @@ h3 {
     box-shadow: 0 5px 30px rgba(0, 217, 255, 0.5);
 }
 
+.contact-item:active {
+    transform: translateY(-2px) scale(0.98);
+}
+
 .contact-icon {
     font-size: 2rem;
     filter: drop-shadow(0 0 10px var(--neon-cyan));
+}
+
+.contact-details {
+    flex-grow: 1;
 }
 
 .contact-details h3 {
@@ -1648,6 +1657,14 @@ h3 {
 .contact-details p {
     color: var(--text-gray);
     font-size: 1rem;
+    margin-bottom: 0.3rem;
+}
+
+.contact-action {
+    font-size: 0.85rem;
+    color: var(--neon-cyan);
+    font-style: italic;
+    opacity: 0.8;
 }
 
 /* Правила и политика */
