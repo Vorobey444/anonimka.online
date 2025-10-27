@@ -2587,7 +2587,7 @@ async function sendEmailToBackend(emailData) {
         // Создаём скрытую форму и отправляем её (избегаем CORS проблем)
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = 'https://formsubmit.co/aleksey@vorobey444.ru';
+        form.action = 'https://formsubmit.co/fcf09353b37b403a284cb92319e01a0b';
         form.target = '_blank'; // Открываем в новой вкладке
         form.style.display = 'none';
         
