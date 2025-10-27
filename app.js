@@ -2581,25 +2581,54 @@ async function sendEmailToBackend(emailData) {
             return result;
         }
         
-        // Для продакшена используем FormSubmit (как в рабочем проекте)
+        // Для продакшена используем FormSubmit (как в рабочем проекте whish.online)
         console.log('📧 Продакшен: отправляем через FormSubmit...');
         
-        const formData = new FormData();
-        formData.append('email', emailData.senderEmail);
-        formData.append('subject', emailData.subject || 'Сообщение с anonimka.online');
-        formData.append('message', emailData.message);
+        // Создаём скрытую форму и отправляем её (избегаем CORS проблем)
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'https://formsubmit.co/aleksey@vorobey444.ru';
+        form.target = '_blank'; // Открываем в новой вкладке
+        form.style.display = 'none';
         
-        const response = await fetch('https://formsubmit.co/aleksey@vorobey444.ru', {
-            method: 'POST',
-            body: formData
-        });
+        // Добавляем поля
+        const emailField = document.createElement('input');
+        emailField.name = 'email';
+        emailField.value = emailData.senderEmail;
+        form.appendChild(emailField);
         
-        if (response.ok) {
-            console.log('✅ Письмо отправлено через FormSubmit');
-            return { success: true, message: 'Письмо успешно отправлено' };
-        } else {
-            throw new Error('Ошибка отправки через FormSubmit');
-        }
+        const subjectField = document.createElement('input');
+        subjectField.name = 'subject';
+        subjectField.value = emailData.subject || 'Сообщение с anonimka.online';
+        form.appendChild(subjectField);
+        
+        const messageField = document.createElement('textarea');
+        messageField.name = 'message';
+        messageField.value = emailData.message;
+        form.appendChild(messageField);
+        
+        // Настройки FormSubmit
+        const captchaField = document.createElement('input');
+        captchaField.name = '_captcha';
+        captchaField.value = 'false';
+        form.appendChild(captchaField);
+        
+        const nextField = document.createElement('input');
+        nextField.name = '_next';
+        nextField.value = window.location.origin + window.location.pathname + '?sent=1';
+        form.appendChild(nextField);
+        
+        // Добавляем форму к документу и отправляем
+        document.body.appendChild(form);
+        form.submit();
+        
+        // Удаляем форму через секунду
+        setTimeout(() => {
+            document.body.removeChild(form);
+        }, 1000);
+        
+        console.log('✅ Письмо отправлено через FormSubmit');
+        return { success: true, message: 'Письмо успешно отправлено! Проверьте новую вкладку.' };
     } catch (error) {
         console.log('Бэкенд недоступен, используем альтернативный способ');
         console.error('Ошибка при отправке на бэкенд:', error);
