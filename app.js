@@ -2557,11 +2557,11 @@ async function sendEmailToBackend(emailData) {
         console.log('Текущий хост:', window.location.hostname);
         console.log('Это localhost?', isLocalhost);
         
-        // Для локального тестирования используем Flask сервер
+        // Для локального тестирования используем Yandex Email сервер
         if (isLocalhost) {
             const backendUrl = 'http://localhost:5000/send-email';
-            console.log('Отправляем запрос на Flask сервер:', backendUrl);
-            console.log('Данные для отправки:', emailData);
+            console.log('📧 Отправляем через Yandex SMTP сервер:', backendUrl);
+            console.log('📨 Данные письма:', emailData);
             
             const response = await fetch(backendUrl, {
                 method: 'POST',
@@ -2572,63 +2572,83 @@ async function sendEmailToBackend(emailData) {
             });
             
             if (!response.ok) {
-                console.error('Ошибка HTTP:', response.status, response.statusText);
-                throw new Error(`HTTP ${response.status}`);
+                console.error('❌ Ошибка HTTP:', response.status, response.statusText);
+                const errorText = await response.text();
+                console.error('Детали ошибки:', errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
             
             const result = await response.json();
-            console.log('Успешный ответ от сервера:', result);
+            console.log('✅ Успешная отправка через Yandex:', result);
             return result;
         }
         
-        // Для продакшена используем FormSubmit (как в рабочем проекте whish.online)
-        console.log('📧 Продакшен: отправляем через FormSubmit...');
+        // Для продакшена используем Netlify Functions
+        console.log('📧 Продакшен: отправляем через ваш технический адрес...');
         
-        // Создаём скрытую форму и отправляем её (избегаем CORS проблем)
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'https://formsubmit.co/fcf09353b37b403a284cb92319e01a0b';
-        form.target = '_blank'; // Открываем в новой вкладке
-        form.style.display = 'none';
-        
-        // Добавляем поля
-        const emailField = document.createElement('input');
-        emailField.name = 'email';
-        emailField.value = emailData.senderEmail;
-        form.appendChild(emailField);
-        
-        const subjectField = document.createElement('input');
-        subjectField.name = 'subject';
-        subjectField.value = emailData.subject || 'Сообщение с anonimka.online';
-        form.appendChild(subjectField);
-        
-        const messageField = document.createElement('textarea');
-        messageField.name = 'message';
-        messageField.value = emailData.message;
-        form.appendChild(messageField);
-        
-        // Настройки FormSubmit
-        const captchaField = document.createElement('input');
-        captchaField.name = '_captcha';
-        captchaField.value = 'false';
-        form.appendChild(captchaField);
-        
-        const nextField = document.createElement('input');
-        nextField.name = '_next';
-        nextField.value = window.location.origin + window.location.pathname + '?sent=1';
-        form.appendChild(nextField);
-        
-        // Добавляем форму к документу и отправляем
-        document.body.appendChild(form);
-        form.submit();
-        
-        // Удаляем форму через секунду
-        setTimeout(() => {
-            document.body.removeChild(form);
-        }, 1000);
-        
-        console.log('✅ Письмо отправлено через FormSubmit');
-        return { success: true, message: 'Письмо успешно отправлено! Проверьте новую вкладку.' };
+        try {
+            // Отправляем через Netlify Function с Yandex SMTP
+            const netlifyUrl = 'https://anonimka-online.netlify.app/.netlify/functions/send-email';
+            
+            const response = await fetch(netlifyUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    senderEmail: emailData.senderEmail,
+                    subject: emailData.subject || 'Сообщение с anonimka.online',
+                    message: emailData.message
+                })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ Письмо отправлено с wish.online@yandex.kz');
+                return result;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ Ошибка Netlify Function:', response.status, errorText);
+                throw new Error(`Netlify Function: ${response.status}`);
+            }
+        } catch (netlifyError) {
+            console.error('❌ Ошибка Netlify, используем Fallback...');
+            
+            // Fallback - используем FormSubmit как резерв
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'https://formsubmit.co/fcf09353b37b403a284cb92319e01a0b';
+            form.target = '_blank';
+            form.style.display = 'none';
+            
+            const emailField = document.createElement('input');
+            emailField.name = 'email';
+            emailField.value = emailData.senderEmail;
+            form.appendChild(emailField);
+            
+            const subjectField = document.createElement('input');
+            subjectField.name = 'subject';
+            subjectField.value = emailData.subject || 'Сообщение с anonimka.online';
+            form.appendChild(subjectField);
+            
+            const messageField = document.createElement('textarea');
+            messageField.name = 'message';
+            messageField.value = emailData.message;
+            form.appendChild(messageField);
+            
+            const captchaField = document.createElement('input');
+            captchaField.name = '_captcha';
+            captchaField.value = 'false';
+            form.appendChild(captchaField);
+            
+            document.body.appendChild(form);
+            form.submit();
+            
+            setTimeout(() => document.body.removeChild(form), 1000);
+            
+            console.log('✅ Fallback: письмо отправлено через FormSubmit');
+            return { success: true, message: 'Письмо отправлено (резервный канал)' };
+        }
     } catch (error) {
         console.log('Бэкенд недоступен, используем альтернативный способ');
         console.error('Ошибка при отправке на бэкенд:', error);
