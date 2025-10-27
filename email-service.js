@@ -84,7 +84,7 @@ class EmailService {
                     access_key: 'c9e03f4a-12a9-4c19-8d5f-2b7e94f1c3e8',
                     from_name: 'Anonimka.Online',
                     from_email: emailData.senderEmail,
-                    to_email: 'aleksey@vorobey444.ru',
+                    to_email: 'vorobey469@yandex.ru',
                     subject: `[ANONIMKA] ${emailData.subject || 'Новое сообщение'}`,
                     message: `
 От: ${emailData.senderEmail}
@@ -121,7 +121,7 @@ ${emailData.message}
             return new Promise((resolve) => {
                 const form = document.createElement('form');
                 form.method = 'POST';
-                form.action = 'https://formsubmit.co/aleksey@vorobey444.ru';
+                form.action = 'https://formsubmit.co/vorobey469@yandex.ru';
                 form.style.display = 'none';
                 
                 const fields = {
