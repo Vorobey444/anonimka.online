@@ -5,7 +5,7 @@ tg.expand();
 // Данные формы
 let formData = {};
 let currentStep = 1;
-const totalSteps = 8;
+const totalSteps = 7;
 
 // Инициализация приложения
 document.addEventListener('DOMContentLoaded', function() {
@@ -158,9 +158,30 @@ function updateFormLocationDisplay() {
 
 function showBrowseAds() {
     showScreen('browseAds');
-    // Сбрасываем фильтр при открытии раздела просмотра
-    resetFilterLocationSelection();
-    loadAds();
+    
+    // Небольшая задержка для убеждения что DOM загружен
+    setTimeout(() => {
+        // Если есть сохраненная локация пользователя, автоматически используем её
+        if (userLocation) {
+            console.log('Применяем автоматический фильтр по локации:', userLocation);
+            
+            // Устанавливаем фильтр на локацию пользователя
+            filterSelectedCountry = userLocation.country;
+            filterSelectedRegion = userLocation.region;
+            filterSelectedCity = userLocation.city;
+            
+            // Обновляем UI фильтра
+            setFilterLocationUI();
+            
+            // Загружаем объявления по локации пользователя
+            loadAdsByLocation(userLocation.country, userLocation.region, userLocation.city);
+        } else {
+            console.log('Локация пользователя не установлена, показываем все объявления');
+            // Если локации нет, сбрасываем фильтр и показываем все объявления
+            resetFilterLocationSelection();
+            loadAds();
+        }
+    }, 100);
 }
 
 // Управление шагами формы
@@ -1427,14 +1448,13 @@ function setupEventListeners() {
 function validateCurrentStep() {
     switch(currentStep) {
         case 1:
-            // Теперь первый шаг - выбор пола
+            // Первый шаг - выбор пола
             return formData.gender;
         case 2:
-        case 3:
             return formData.target;
-        case 4:
+        case 3:
             return formData.goal;
-        case 5:
+        case 4:
             const ageFrom = document.getElementById('ageFrom').value;
             const ageTo = document.getElementById('ageTo').value;
             if (ageFrom && ageTo) {
@@ -1443,16 +1463,16 @@ function validateCurrentStep() {
                 return true;
             }
             return false;
-        case 6:
+        case 5:
             const myAge = document.getElementById('myAge').value;
             if (myAge) {
                 formData.myAge = myAge;
                 return true;
             }
             return false;
-        case 7:
+        case 6:
             return formData.body;
-        case 8:
+        case 7:
             const adText = document.getElementById('adText').value.trim();
             if (adText) {
                 formData.text = adText;
@@ -1661,6 +1681,71 @@ function showFilterSelectedLocation() {
     setTimeout(() => {
         selectedLocationDiv.style.opacity = '1';
     }, 50);
+}
+
+// Установка UI фильтра на основе локации пользователя
+function setFilterLocationUI() {
+    if (!userLocation) {
+        console.log('setFilterLocationUI: локация пользователя не установлена');
+        return;
+    }
+    
+    console.log('setFilterLocationUI: устанавливаем UI для локации', userLocation);
+    
+    // Устанавливаем активную кнопку страны
+    const countryButtons = document.querySelectorAll('.filter-country');
+    console.log('Найдено кнопок стран для фильтра:', countryButtons.length);
+    
+    countryButtons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.country === userLocation.country) {
+            btn.classList.add('active');
+            console.log('Активирована кнопка страны:', btn.dataset.country);
+        }
+    });
+    
+    // Заполняем поля ввода
+    const regionInput = document.querySelector('.filter-region-input');
+    const cityInput = document.querySelector('.filter-city-input');
+    
+    console.log('regionInput найден:', !!regionInput);
+    console.log('cityInput найден:', !!cityInput);
+    
+    if (regionInput) regionInput.value = userLocation.region;
+    if (cityInput) cityInput.value = userLocation.city;
+    
+    // Показываем все секции как заполненные
+    const regionSection = document.querySelector('.filter-region-selection');
+    const citySection = document.querySelector('.filter-city-selection');
+    const selectedLocationDiv = document.querySelector('.filter-selected-location');
+    const locationText = document.querySelector('.filter-location-text');
+    
+    console.log('Секции найдены:', {
+        regionSection: !!regionSection,
+        citySection: !!citySection,
+        selectedLocationDiv: !!selectedLocationDiv,
+        locationText: !!locationText
+    });
+    
+    if (regionSection) {
+        regionSection.style.display = 'block';
+        regionSection.style.opacity = '1';
+    }
+    
+    if (citySection) {
+        citySection.style.display = 'block';
+        citySection.style.opacity = '1';
+    }
+    
+    if (selectedLocationDiv && locationText) {
+        const fullLocation = `${locationData[userLocation.country].flag} ${userLocation.region}, ${userLocation.city}`;
+        locationText.textContent = fullLocation;
+        selectedLocationDiv.style.display = 'block';
+        selectedLocationDiv.style.opacity = '1';
+        console.log('Установлен текст локации:', fullLocation);
+    }
+    
+    console.log('UI фильтра установлен на локацию пользователя:', userLocation);
 }
 
 // Сброс выбора локации для фильтра
@@ -2051,5 +2136,41 @@ function updateActiveMenuItem(activeId) {
     const activeItem = document.querySelector(`.hamburger-item[onclick*="${activeId}"], .hamburger-item[onclick="goToHome()"]`);
     if (activeItem) {
         activeItem.classList.add('active');
+    }
+}
+
+// Функции для контактов
+function openEmailComposer() {
+    // Создаем скрытую форму для отправки письма от wish.online@yandex.kz
+    const subject = encodeURIComponent('Обращение через Анонимную доску объявлений');
+    const body = encodeURIComponent('Здравствуйте!\n\nПишу вам через анонимную доску объявлений.\n\n[Опишите вашу проблему или вопрос]\n\nС уважением,');
+    
+    // Показываем информацию пользователю о том, как отправить письмо
+    tg.showAlert(`Для отправки письма:
+    
+1. Откройте вашу почту (Яндекс.Почта, Gmail и т.д.)
+2. Создайте новое письмо на: aleksey@vorobey444.ru
+3. Тема: "Обращение через Анонимную доску объявлений"
+4. Опишите ваш вопрос или проблему
+    
+Или нажмите OK и мы попробуем открыть почтовый клиент автоматически.`, () => {
+        // Пробуем открыть почтовый клиент
+        const mailtoLink = `mailto:aleksey@vorobey444.ru?subject=${subject}&body=${body}`;
+        window.location.href = mailtoLink;
+    });
+}
+
+function openTelegramChat() {
+    // Открываем чат в Telegram
+    const telegramUrl = 'https://t.me/Vorobey_444';
+    
+    // Пробуем открыть через Telegram Web App API
+    if (tg.openTelegramLink) {
+        tg.openTelegramLink(telegramUrl);
+    } else if (tg.openLink) {
+        tg.openLink(telegramUrl);
+    } else {
+        // Fallback - обычная ссылка
+        window.open(telegramUrl, '_blank');
     }
 }
