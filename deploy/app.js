@@ -5,14 +5,13 @@ tg.expand();
 // Данные формы
 let formData = {};
 let currentStep = 1;
-const totalSteps = 7;
+const totalSteps = 8;
 
 // Инициализация приложения
 document.addEventListener('DOMContentLoaded', function() {
     initializeTelegramWebApp();
     checkUserLocation();
     setupEventListeners();
-    setupContactsEventListeners();
 });
 
 function initializeTelegramWebApp() {
@@ -159,30 +158,9 @@ function updateFormLocationDisplay() {
 
 function showBrowseAds() {
     showScreen('browseAds');
-    
-    // Небольшая задержка для убеждения что DOM загружен
-    setTimeout(() => {
-        // Если есть сохраненная локация пользователя, автоматически используем её
-        if (userLocation) {
-            console.log('Применяем автоматический фильтр по локации:', userLocation);
-            
-            // Устанавливаем фильтр на локацию пользователя
-            filterSelectedCountry = userLocation.country;
-            filterSelectedRegion = userLocation.region;
-            filterSelectedCity = userLocation.city;
-            
-            // Обновляем UI фильтра
-            setFilterLocationUI();
-            
-            // Загружаем объявления по локации пользователя
-            loadAdsByLocation(userLocation.country, userLocation.region, userLocation.city);
-        } else {
-            console.log('Локация пользователя не установлена, показываем все объявления');
-            // Если локации нет, сбрасываем фильтр и показываем все объявления
-            resetFilterLocationSelection();
-            loadAds();
-        }
-    }, 100);
+    // Сбрасываем фильтр при открытии раздела просмотра
+    resetFilterLocationSelection();
+    loadAds();
 }
 
 // Управление шагами формы
@@ -425,23 +403,6 @@ function resetForm() {
     document.getElementById('adText').value = '';
     
     showStep(1);
-}
-
-// Функция загрузки Email Service
-async function loadEmailService() {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = './email-service.js';
-        script.onload = () => {
-            console.log('✅ Email Service загружен');
-            resolve();
-        };
-        script.onerror = () => {
-            console.error('❌ Ошибка загрузки Email Service');
-            reject(new Error('Failed to load Email Service'));
-        };
-        document.head.appendChild(script);
-    });
 }
 
 // Обработка данных от бота
@@ -1466,13 +1427,14 @@ function setupEventListeners() {
 function validateCurrentStep() {
     switch(currentStep) {
         case 1:
-            // Первый шаг - выбор пола
+            // Теперь первый шаг - выбор пола
             return formData.gender;
         case 2:
-            return formData.target;
         case 3:
-            return formData.goal;
+            return formData.target;
         case 4:
+            return formData.goal;
+        case 5:
             const ageFrom = document.getElementById('ageFrom').value;
             const ageTo = document.getElementById('ageTo').value;
             if (ageFrom && ageTo) {
@@ -1481,16 +1443,16 @@ function validateCurrentStep() {
                 return true;
             }
             return false;
-        case 5:
+        case 6:
             const myAge = document.getElementById('myAge').value;
             if (myAge) {
                 formData.myAge = myAge;
                 return true;
             }
             return false;
-        case 6:
-            return formData.body;
         case 7:
+            return formData.body;
+        case 8:
             const adText = document.getElementById('adText').value.trim();
             if (adText) {
                 formData.text = adText;
@@ -1699,71 +1661,6 @@ function showFilterSelectedLocation() {
     setTimeout(() => {
         selectedLocationDiv.style.opacity = '1';
     }, 50);
-}
-
-// Установка UI фильтра на основе локации пользователя
-function setFilterLocationUI() {
-    if (!userLocation) {
-        console.log('setFilterLocationUI: локация пользователя не установлена');
-        return;
-    }
-    
-    console.log('setFilterLocationUI: устанавливаем UI для локации', userLocation);
-    
-    // Устанавливаем активную кнопку страны
-    const countryButtons = document.querySelectorAll('.filter-country');
-    console.log('Найдено кнопок стран для фильтра:', countryButtons.length);
-    
-    countryButtons.forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.country === userLocation.country) {
-            btn.classList.add('active');
-            console.log('Активирована кнопка страны:', btn.dataset.country);
-        }
-    });
-    
-    // Заполняем поля ввода
-    const regionInput = document.querySelector('.filter-region-input');
-    const cityInput = document.querySelector('.filter-city-input');
-    
-    console.log('regionInput найден:', !!regionInput);
-    console.log('cityInput найден:', !!cityInput);
-    
-    if (regionInput) regionInput.value = userLocation.region;
-    if (cityInput) cityInput.value = userLocation.city;
-    
-    // Показываем все секции как заполненные
-    const regionSection = document.querySelector('.filter-region-selection');
-    const citySection = document.querySelector('.filter-city-selection');
-    const selectedLocationDiv = document.querySelector('.filter-selected-location');
-    const locationText = document.querySelector('.filter-location-text');
-    
-    console.log('Секции найдены:', {
-        regionSection: !!regionSection,
-        citySection: !!citySection,
-        selectedLocationDiv: !!selectedLocationDiv,
-        locationText: !!locationText
-    });
-    
-    if (regionSection) {
-        regionSection.style.display = 'block';
-        regionSection.style.opacity = '1';
-    }
-    
-    if (citySection) {
-        citySection.style.display = 'block';
-        citySection.style.opacity = '1';
-    }
-    
-    if (selectedLocationDiv && locationText) {
-        const fullLocation = `${locationData[userLocation.country].flag} ${userLocation.region}, ${userLocation.city}`;
-        locationText.textContent = fullLocation;
-        selectedLocationDiv.style.display = 'block';
-        selectedLocationDiv.style.opacity = '1';
-        console.log('Установлен текст локации:', fullLocation);
-    }
-    
-    console.log('UI фильтра установлен на локацию пользователя:', userLocation);
 }
 
 // Сброс выбора локации для фильтра
@@ -2126,54 +2023,6 @@ function showContacts() {
     updateActiveMenuItem('contacts');
 }
 
-function showEmailForm() {
-    showScreen('emailForm');
-    // Очищаем форму при открытии
-    document.getElementById('senderEmail').value = '';
-    document.getElementById('emailSubject').value = 'Обращение через anonimka.online';
-    document.getElementById('emailMessage').value = '';
-    document.getElementById('emailStatus').style.display = 'none';
-    
-    // Показываем инструкцию как начать
-    showEmailStatus('loading', '💡 Заполните форму ниже. При отправке письмо будет автоматически переслано с технического ящика wish.online@yandex.kz');
-    
-    // Убеждаемся, что обработчики событий подключены
-    setTimeout(() => {
-        setupEmailFormHandlers();
-    }, 100);
-}
-
-// Отдельная функция для настройки обработчиков формы
-function setupEmailFormHandlers() {
-    const contactForm = document.getElementById('contactForm');
-    const sendBtn = document.getElementById('sendEmailBtn');
-    
-    console.log('setupEmailFormHandlers вызвана');
-    console.log('contactForm найдена:', !!contactForm);
-    console.log('sendBtn найдена:', !!sendBtn);
-    
-    if (contactForm) {
-        // Удаляем старые обработчики и добавляем новые
-        contactForm.removeEventListener('submit', handleEmailSubmit);
-        contactForm.addEventListener('submit', handleEmailSubmit);
-        console.log('Обработчик submit добавлен к форме');
-    }
-    
-    if (sendBtn) {
-        // Удаляем старые обработчики и добавляем новые
-        sendBtn.removeEventListener('click', handleEmailButtonClick);
-        sendBtn.addEventListener('click', handleEmailButtonClick);
-        console.log('Обработчик click добавлен к кнопке');
-    }
-}
-
-// Отдельный обработчик для кнопки
-function handleEmailButtonClick(event) {
-    event.preventDefault();
-    console.log('handleEmailButtonClick вызвана');
-    handleEmailSubmit(event);
-}
-
 function showRules() {
     closeHamburgerMenu();
     showScreen('rules');
@@ -2202,481 +2051,5 @@ function updateActiveMenuItem(activeId) {
     const activeItem = document.querySelector(`.hamburger-item[onclick*="${activeId}"], .hamburger-item[onclick="goToHome()"]`);
     if (activeItem) {
         activeItem.classList.add('active');
-    }
-}
-
-// Функции для контактов
-function openEmailComposer() {
-    console.log('openEmailComposer вызвана');
-    
-    // Данные для отправки
-    const recipient = 'aleksey@vorobey444.ru';
-    const senderEmail = 'wish.online@yandex.kz';
-    const subject = 'Обращение через Анонимную доску объявлений';
-    const bodyText = `Здравствуйте!
-
-Пишу вам через анонимную доску объявлений anonimka.online
-
-[Опишите вашу проблему или вопрос]
-
-С уважением,
-[Ваше имя]`;
-
-    // Попытка открыть через Telegram Web App API
-    if (tg && tg.showAlert) {
-        tg.showAlert('Выберите способ отправки письма:', [
-            {
-                text: 'Открыть почтовый клиент',
-                type: 'default'
-            },
-            {
-                text: 'Показать инструкцию',
-                type: 'default'
-            }
-        ]);
-    } else {
-        // Если Telegram Web App недоступен, используем стандартный подход
-        showEmailInstructions();
-    }
-}
-
-function showEmailInstructions() {
-    const recipient = 'aleksey@vorobey444.ru';
-    const senderEmail = 'wish.online@yandex.kz';
-    const password = 'Fjeiekd469!@#';
-    const wishPassKey = 'rowaatbxiunmlunl';
-    
-    const instructions = `
-📧 ИНСТРУКЦИЯ ДЛЯ ОТПРАВКИ ПИСЬМА
-
-1️⃣ СПОСОБ 1 - Через ваш почтовый клиент:
-   • Откройте вашу почту (Gmail, Яндекс.Почта и т.д.)
-   • Создайте новое письмо на: ${recipient}
-   • Тема: "Обращение через anonimka.online"
-   • Опишите ваш вопрос
-
-2️⃣ СПОСОБ 2 - Через Яндекс.Почту (рекомендуется):
-   • Адрес: ${senderEmail}
-   • Пароль: ${password}
-   • WishPass ключ: ${wishPassKey}
-   • Получатель: ${recipient}
-
-🔗 Нажмите OK для автоматического открытия почты`;
-
-    if (confirm(instructions)) {
-        // Пробуем открыть mailto ссылку
-        const subject = encodeURIComponent('Обращение через anonimka.online');
-        const body = encodeURIComponent(`Здравствуйте!
-
-Пишу вам через анонимную доску объявлений anonimka.online
-
-[Опишите вашу проблему или вопрос]
-
-С уважением,
-[Ваше имя]`);
-        
-        const mailtoLink = `mailto:${recipient}?subject=${subject}&body=${body}`;
-        window.open(mailtoLink, '_blank');
-    }
-}
-
-function openTelegramChat() {
-    console.log('openTelegramChat вызвана');
-    
-    const telegramUrl = 'https://t.me/Vorobey_444';
-    
-    // Пробуем открыть через Telegram Web App API
-    if (tg && tg.openTelegramLink) {
-        console.log('Используем tg.openTelegramLink');
-        tg.openTelegramLink(telegramUrl);
-    } else if (tg && tg.openLink) {
-        console.log('Используем tg.openLink');
-        tg.openLink(telegramUrl);
-    } else {
-        console.log('Используем window.open как fallback');
-        // Fallback - обычная ссылка
-        window.open(telegramUrl, '_blank');
-    }
-}
-
-// Настройка обработчиков событий для контактов
-function setupContactsEventListeners() {
-    console.log('Настройка обработчиков контактов');
-    
-    // Добавляем обработчик для формы отправки письма
-    const contactForm = document.getElementById('contactForm');
-    if (contactForm) {
-        console.log('Найдена форма contactForm, добавляем обработчик');
-        contactForm.addEventListener('submit', handleEmailSubmit);
-        
-        // Дополнительно добавляем обработчик на кнопку
-        const sendBtn = document.getElementById('sendEmailBtn');
-        if (sendBtn) {
-            console.log('Найдена кнопка sendEmailBtn, добавляем обработчик клика');
-            sendBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                console.log('Клик по кнопке отправки письма');
-                handleEmailSubmit(e);
-            });
-        }
-    } else {
-        console.log('Форма contactForm не найдена');
-        // Пробуем найти через таймаут
-        setTimeout(() => {
-            const form = document.getElementById('contactForm');
-            if (form) {
-                console.log('Форма найдена через таймаут, добавляем обработчик');
-                form.addEventListener('submit', handleEmailSubmit);
-                
-                const btn = document.getElementById('sendEmailBtn');
-                if (btn) {
-                    btn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        handleEmailSubmit(e);
-                    });
-                }
-            }
-        }, 1000);
-    }
-    
-    // Добавляем обработчики событий для Telegram контакта
-    const telegramContact = document.querySelector('.contact-item[onclick*="openTelegramChat"]');
-    
-    if (telegramContact) {
-        console.log('Найден элемент telegram контакта, добавляем обработчик');
-        telegramContact.addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('Клик по telegram контакту');
-            openTelegramChat();
-        });
-    }
-}
-
-// Обработчик отправки письма - ГЛОБАЛЬНАЯ ФУНКЦИЯ
-window.handleEmailSubmit = async function(event) {
-    if (event) event.preventDefault();
-    console.log('🚀 handleEmailSubmit вызвана - РАБОТАЕТ!');
-    
-    const senderEmail = document.getElementById('senderEmail');
-    const subject = document.getElementById('emailSubject');
-    const message = document.getElementById('emailMessage');
-    const sendBtn = document.getElementById('sendEmailBtn');
-    
-    console.log('Элементы формы:', {
-        senderEmail: !!senderEmail,
-        subject: !!subject, 
-        message: !!message,
-        sendBtn: !!sendBtn
-    });
-    
-    if (!senderEmail || !subject || !message) {
-        console.error('❌ Не найдены элементы формы!');
-        alert('Ошибка: элементы формы не найдены');
-        return;
-    }
-    
-    const emailValue = senderEmail.value.trim();
-    const subjectValue = subject.value.trim();
-    const messageValue = message.value.trim();
-    
-    console.log('Значения полей:', { emailValue, subjectValue, messageValue });
-    
-    // Валидация
-    if (!emailValue || !messageValue) {
-        console.log('❌ Валидация не прошла: пустые поля');
-        showEmailStatus('error', '❌ Пожалуйста, заполните все обязательные поля');
-        return;
-    }
-    
-    if (messageValue.length < 3) {
-        console.log('❌ Валидация не прошла: короткое сообщение');
-        showEmailStatus('error', '❌ Сообщение должно содержать минимум 3 символа');
-        return;
-    }
-    
-    console.log('✅ Валидация прошла успешно');
-    
-    // Показываем загрузку
-    showEmailStatus('loading', '📤 Отправляем письмо...');
-    if (sendBtn) sendBtn.disabled = true;
-    
-    try {
-        const emailData = {
-            senderEmail: emailValue,
-            subject: subjectValue || 'Обращение через anonimka.online',
-            message: messageValue
-        };
-        
-        console.log('📧 Пытаемся отправить через бэкенд...');
-        
-        // Сначала пытаемся отправить через бэкенд
-        const result = await sendEmailToBackend(emailData);
-        
-        // Если бэкенд сработал успешно
-        if (result && result.success) {
-            console.log('✅ Письмо отправлено через бэкенд!');
-            showEmailStatus('success', '✅ Письмо успешно отправлено!');
-            
-            // Очищаем форму
-            document.getElementById('senderEmail').value = '';
-            document.getElementById('emailSubject').value = 'Обращение через anonimka.online';
-            document.getElementById('emailMessage').value = '';
-            
-            return; // Выходим из функции, не переходя к mailto
-        }
-        
-        // Если бэкенд не сработал, fallback не нужен для localhost
-        // (ошибка будет обработана в catch блоке)
-        
-    } catch (error) {
-        console.error('❌ Ошибка при отправке через бэкенд:', error);
-        
-        // Fallback: открываем mailto
-        console.log('📧 Переходим к mailto fallback...');
-        
-        const subject_encoded = encodeURIComponent(`[anonimka.online] ${emailData.subject}`);
-        const body_encoded = encodeURIComponent(`От: ${emailData.senderEmail}
-Сообщение с сайта anonimka.online
-
-${emailData.message}
-
----
-Пожалуйста, отвечайте на адрес: ${emailData.senderEmail}
-Время отправки: ${new Date().toLocaleString('ru-RU')}`);
-
-        const mailtoLink = `mailto:aleksey@vorobey444.ru?subject=${subject_encoded}&body=${body_encoded}`;
-        
-        console.log('📧 Mailto ссылка создана:', mailtoLink);
-        
-        // Открываем почтовый клиент
-        window.open(mailtoLink, '_blank');
-        
-        showEmailStatus('success', '✅ Почтовый клиент открыт! Если письмо не открылось, данные для ручной отправки ниже:');
-        
-        // Показываем данные для ручной отправки
-        setTimeout(() => {
-            showManualEmailOption(emailData);
-        }, 2000);
-    } finally {
-        if (sendBtn) sendBtn.disabled = false;
-    }
-};
-// Показать опцию ручной отправки
-function showManualEmailOption(emailData) {
-    const statusDiv = document.getElementById('emailStatus');
-    statusDiv.className = 'email-status error';
-    statusDiv.innerHTML = `
-        📋 <strong>Данные для ручной отправки:</strong>
-        <br><br>
-        <strong>На:</strong> aleksey@vorobey444.ru<br>
-        <strong>От:</strong> ${emailData.senderEmail}<br>
-        <strong>Тема:</strong> ${emailData.subject}<br>
-        <strong>Сообщение:</strong><br>
-        ${emailData.message.replace(/\n/g, '<br>')}
-        <br><br>
-        <button class="neon-button secondary" onclick="copyEmailData('${emailData.senderEmail}', '${emailData.subject.replace(/'/g, "\\'")}', '${emailData.message.replace(/'/g, "\\'")}')">
-            📋 Копировать данные
-        </button>
-        <button class="neon-button primary" onclick="openManualMailto('${emailData.senderEmail}', '${emailData.subject.replace(/'/g, "\\'")}', '${emailData.message.replace(/'/g, "\\'")}')">
-            📧 Открыть почту
-        </button>
-    `;
-}
-
-// Копировать данные письма
-function copyEmailData(senderEmail, subject, message) {
-    const emailText = `На: aleksey@vorobey444.ru
-От: ${senderEmail}
-Тема: ${subject}
-
-${message}`;
-
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(emailText).then(() => {
-            showEmailStatus('success', '✅ Данные письма скопированы в буфер обмена');
-        });
-    } else {
-        // Fallback для старых браузеров
-        const textArea = document.createElement('textarea');
-        textArea.value = emailText;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        showEmailStatus('success', '✅ Данные письма скопированы в буфер обмена');
-    }
-}
-
-// Открыть почтовый клиент вручную
-function openManualMailto(senderEmail, subject, message) {
-    const mailtoData = {
-        senderEmail,
-        subject,
-        message
-    };
-    
-    sendEmailViaMailto(mailtoData).then(result => {
-        if (result.success) {
-            showEmailStatus('success', result.message);
-        } else {
-            showEmailStatus('error', result.error);
-        }
-    });
-}
-
-// Глобальные функции для использования в onclick
-window.copyEmailData = copyEmailData;
-window.openManualMailto = openManualMailto;
-
-// Тестовая функция
-window.testFunction = function() {
-    console.log('🧪 Тест функции сработал!');
-    alert('Тест работает! Проверьте консоль.');
-    
-    // Тестируем основную функцию
-    const senderEmailEl = document.getElementById('senderEmail');
-    const subjectEl = document.getElementById('emailSubject');
-    const messageEl = document.getElementById('emailMessage');
-    
-    if (senderEmailEl) senderEmailEl.value = 'test@example.com';
-    if (subjectEl) subjectEl.value = 'Тестовое сообщение';
-    if (messageEl) messageEl.value = 'Это тестовое сообщение для проверки работы формы';
-    
-    console.log('Форма заполнена тестовыми данными');
-};
-
-// Показать статус отправки
-function showEmailStatus(type, message) {
-    const statusDiv = document.getElementById('emailStatus');
-    statusDiv.className = `email-status ${type}`;
-    
-    if (type === 'loading') {
-        statusDiv.innerHTML = `<div class="loading-spinner"></div>${message}`;
-    } else {
-        statusDiv.innerHTML = message;
-    }
-    
-    statusDiv.style.display = 'block';
-    
-    // Автоматически скрываем сообщение через 5 секунд (кроме ошибок)
-    if (type === 'success') {
-        setTimeout(() => {
-            statusDiv.style.display = 'none';
-        }, 5000);
-    }
-}
-
-// Отправка письма на бэкенд
-async function sendEmailToBackend(emailData) {
-    try {
-        // Определяем URL бэкенда
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        console.log('Текущий хост:', window.location.hostname);
-        console.log('Это localhost?', isLocalhost);
-        
-        // Для локального тестирования используем Yandex Email сервер
-        if (isLocalhost) {
-            const backendUrl = 'http://localhost:5000/send-email';
-            console.log('📧 Отправляем через Yandex SMTP сервер:', backendUrl);
-            console.log('📨 Данные письма:', emailData);
-            
-            const response = await fetch(backendUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(emailData)
-            });
-            
-            if (!response.ok) {
-                console.error('❌ Ошибка HTTP:', response.status, response.statusText);
-                const errorText = await response.text();
-                console.error('Детали ошибки:', errorText);
-                throw new Error(`HTTP ${response.status}: ${errorText}`);
-            }
-            
-            const result = await response.json();
-            console.log('✅ Успешная отправка через Yandex:', result);
-            return result;
-        }
-        
-        // Для продакшена используем простую отправку как в whish.online
-        console.log('📧 Продакшен: отправляем как в whish.online - просто и надёжно...');
-        
-        // Загружаем простую функцию email
-        if (typeof window.sendEmailWhishStyle === 'undefined') {
-            console.log('Загружаем Email Service...');
-            await loadEmailService();
-        }
-
-        // Используем простую функцию отправки
-        return window.sendEmailWhishStyle(emailData);
-    } catch (error) {
-        console.log('Бэкенд недоступен, используем альтернативный способ');
-        console.error('Ошибка при отправке на бэкенд:', error);
-        
-        // Если бэкенд недоступен, используем Telegram Bot API
-        return await sendEmailViaTelegram(emailData);
-    }
-}
-
-// Альтернативная отправка через Telegram бота или mailto
-async function sendEmailViaTelegram(emailData) {
-    try {
-        // Сначала пробуем через Telegram Web App
-        if (tg && tg.sendData) {
-            console.log('Отправляем через Telegram Web App');
-            tg.sendData(JSON.stringify({
-                action: 'sendEmail',
-                data: {
-                    senderEmail: emailData.senderEmail,
-                    subject: emailData.subject,
-                    message: emailData.message
-                }
-            }));
-            
-            return {
-                success: true,
-                message: 'Сообщение отправлено через Telegram бота'
-            };
-        } else {
-            console.log('Telegram Web App недоступен, используем mailto');
-            // Используем стандартный mailto как последний вариант
-            return sendEmailViaMailto(emailData);
-        }
-    } catch (error) {
-        console.error('Ошибка Telegram отправки:', error);
-        return sendEmailViaMailto(emailData);
-    }
-}
-
-// Отправка через стандартный mailto
-async function sendEmailViaMailto(emailData) {
-    try {
-        const subject = encodeURIComponent(`[anonimka.online] ${emailData.subject}`);
-        const body = encodeURIComponent(`От: ${emailData.senderEmail}
-Сообщение с сайта anonimka.online
-
-${emailData.message}
-
----
-Пожалуйста, отвечайте на адрес: ${emailData.senderEmail}
-Время отправки: ${new Date().toLocaleString('ru-RU')}`);
-
-        const mailtoLink = `mailto:aleksey@vorobey444.ru?subject=${subject}&body=${body}`;
-        
-        // Открываем почтовый клиент
-        window.open(mailtoLink, '_blank');
-        
-        return {
-            success: true,
-            message: 'Открыт почтовый клиент для отправки. Если письмо не открылось автоматически, скопируйте данные и отправьте вручную.'
-        };
-    } catch (error) {
-        console.error('Ошибка mailto:', error);
-        return {
-            success: false,
-            error: 'Не удалось открыть почтовый клиент. Отправьте письмо вручную на aleksey@vorobey444.ru'
-        };
     }
 }

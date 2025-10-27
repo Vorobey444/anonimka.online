@@ -9,7 +9,6 @@
     <title>Анонимная доска объявлений</title>
     <link rel="stylesheet" href="style.css?v=3.0">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="supabase-client.js?v=3.0"></script>
 </head>
 <body>
     <div class="app-container">
@@ -169,77 +168,26 @@
                 <h2>Контакты</h2>
             </div>
             <div class="info-content">
-                <div class="contact-item" onclick="showEmailForm()">
+                <div class="contact-item">
                     <span class="contact-icon">📧</span>
                     <div class="contact-details">
-                        <h3>Написать письмо</h3>
-                        <p>aleksey@vorobey444.ru</p>
-                        <span class="contact-action">Нажмите для отправки письма</span>
+                        <h3>Электронная почта</h3>
+                        <p>support@anonboard.app</p>
                     </div>
                 </div>
-                <div class="contact-item" onclick="openTelegramChat()">
+                <div class="contact-item">
                     <span class="contact-icon">💬</span>
                     <div class="contact-details">
                         <h3>Telegram</h3>
-                        <p>@Vorobey_444</p>
-                        <span class="contact-action">Нажмите для открытия чата</span>
+                        <p>@anonboard_support</p>
                     </div>
                 </div>
                 <div class="contact-item">
                     <span class="contact-icon">⏰</span>
                     <div class="contact-details">
                         <h3>Время работы</h3>
-                        <p>Поддержка в рабочие дни</p>
+                        <p>24/7 автоматическая поддержка</p>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Форма отправки письма -->
-        <div id="emailForm" class="screen">
-            <div class="header">
-                <button class="back-btn" onclick="showContacts()">← Назад</button>
-                <h2>Написать письмо</h2>
-            </div>
-            
-            <div class="email-form-container">
-                <form id="contactForm" class="contact-form">
-                    <div class="form-group">
-                        <label for="senderEmail">Ваша почта для ответа *</label>
-                        <input type="email" id="senderEmail" class="neon-input" placeholder="your-email@example.com" required>
-                        <span class="input-hint">На эту почту придет ответ</span>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="emailSubject">Тема письма</label>
-                        <input type="text" id="emailSubject" class="neon-input" placeholder="Тема сообщения" value="Обращение через anonimka.online">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="emailMessage">Сообщение *</label>
-                        <textarea id="emailMessage" class="neon-textarea" placeholder="Опишите ваш вопрос или проблему..." rows="8" required></textarea>
-                        <span class="input-hint">Минимум 10 символов</span>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="button" class="neon-button secondary" onclick="showContacts()">
-                            🔙 Отмена
-                        </button>
-                        <button type="button" class="neon-button primary" id="sendEmailBtn" onclick="handleEmailSubmit(event)">
-                            📧 Отправить письмо
-                        </button>
-                    </div>
-                    
-                    <!-- Кнопка для тестирования -->
-                    <div style="text-align: center; margin-top: 1rem;">
-                        <button type="button" onclick="testFunction()" style="padding: 0.5rem; background: #333; color: #0ff; border: 1px solid #0ff; border-radius: 5px;">
-                            🧪 Тест функции
-                        </button>
-                    </div>
-                </form>
-                
-                <div id="emailStatus" class="email-status" style="display: none;">
-                    <!-- Статус отправки будет показан здесь -->
                 </div>
             </div>
         </div>
@@ -493,7 +441,6 @@
         </div>
     </div>
 
-    <script src="email-service.js?v=1.0"></script>
-    <script src="app.js?v=3.0"></script></script>
+    <script src="app.js?v=3.0"></script>
 </body>
 </html>

@@ -1626,7 +1626,6 @@ h3 {
     border-radius: 20px;
     box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
     transition: all 0.3s ease;
-    cursor: pointer;
 }
 
 .contact-item:hover {
@@ -1634,17 +1633,9 @@ h3 {
     box-shadow: 0 5px 30px rgba(0, 217, 255, 0.5);
 }
 
-.contact-item:active {
-    transform: translateY(-2px) scale(0.98);
-}
-
 .contact-icon {
     font-size: 2rem;
     filter: drop-shadow(0 0 10px var(--neon-cyan));
-}
-
-.contact-details {
-    flex-grow: 1;
 }
 
 .contact-details h3 {
@@ -1657,101 +1648,6 @@ h3 {
 .contact-details p {
     color: var(--text-gray);
     font-size: 1rem;
-    margin-bottom: 0.3rem;
-}
-
-.contact-action {
-    font-size: 0.85rem;
-    color: var(--neon-cyan);
-    font-style: italic;
-    opacity: 0.8;
-}
-
-/* Форма отправки письма */
-.email-form-container {
-    padding: 1rem;
-}
-
-.contact-form {
-    background: linear-gradient(135deg, var(--bg-card), #2a2a3e);
-    border: 2px solid var(--neon-cyan);
-    border-radius: 20px;
-    padding: 2rem;
-    box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-group label {
-    display: block;
-    color: var(--text-light);
-    font-size: 1.1rem;
-    margin-bottom: 0.5rem;
-    text-shadow: 0 0 10px rgba(0, 217, 255, 0.4);
-}
-
-.input-hint {
-    display: block;
-    font-size: 0.8rem;
-    color: var(--text-gray);
-    margin-top: 0.3rem;
-    opacity: 0.8;
-}
-
-.form-actions {
-    display: flex;
-    gap: 1rem;
-    margin-top: 2rem;
-}
-
-.form-actions .neon-button {
-    flex: 1;
-}
-
-.email-status {
-    margin-top: 1.5rem;
-    padding: 1rem;
-    border-radius: 10px;
-    text-align: center;
-    font-weight: bold;
-}
-
-.email-status.success {
-    background: linear-gradient(135deg, #1a4d1a, #2d7a2d);
-    border: 2px solid #00ff00;
-    color: #00ff00;
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
-}
-
-.email-status.error {
-    background: linear-gradient(135deg, #4d1a1a, #7a2d2d);
-    border: 2px solid #ff0040;
-    color: #ff0040;
-    box-shadow: 0 0 15px rgba(255, 0, 64, 0.3);
-}
-
-.email-status.loading {
-    background: linear-gradient(135deg, #1a1a4d, #2d2d7a);
-    border: 2px solid var(--neon-purple);
-    color: var(--neon-purple);
-    box-shadow: 0 0 15px rgba(131, 56, 236, 0.3);
-}
-
-.loading-spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 3px solid var(--neon-purple);
-    border-radius: 50%;
-    border-top-color: transparent;
-    animation: spin 1s ease-in-out infinite;
-    margin-right: 0.5rem;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
 }
 
 /* Правила и политика */
