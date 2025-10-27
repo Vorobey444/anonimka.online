@@ -61,7 +61,7 @@ class SupabaseClient {
 
     // Отправить email через Edge Function
     async sendEmail(emailData) {
-        const response = await fetch(`${this.url}/functions/v1/send-email`, {
+        const response = await fetch(`${this.url}/functions/v1/resend-email`, {
             method: 'POST',
             headers: this.headers,
             body: JSON.stringify(emailData)
