@@ -2581,8 +2581,20 @@ async function sendEmailToBackend(emailData) {
             return result;
         }
         
-        // Для продакшена используем прямое решение без бэкенда
-        throw new Error('Используем fallback для продакшена');
+        // Для продакшена используем Telegram Web App
+        console.log('📧 Продакшен: отправляем через Telegram Web App...');
+        
+        if (tg && tg.sendData) {
+            console.log('Отправляем через Telegram Web App');
+            tg.sendData(JSON.stringify({
+                action: 'sendEmail',
+                data: emailData
+            }));
+            
+            return { success: true, message: 'Отправлено через Telegram' };
+        } else {
+            throw new Error('Telegram Web App недоступен');
+        }
     } catch (error) {
         console.log('Бэкенд недоступен, используем альтернативный способ');
         console.error('Ошибка при отправке на бэкенд:', error);
