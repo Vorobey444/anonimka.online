@@ -63,8 +63,10 @@ from telegram.ext import CallbackQueryHandler
 import logging
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
+import requests
 
 TOKEN = "8400755138:AAGG-yNvQknz60IXM7xVHeN-xNtzjHFTG1U"
+API_BASE_URL = "https://anonimka.online"  # URL вашего сайта
 
 
 logging.basicConfig(
@@ -87,12 +89,99 @@ BODY_TYPES = ["Стройное", "Обычное", "Плотное", "Спор�
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"start: Получено сообщение: {getattr(update.message, 'text', None)}")
-    keyboard = [["Подать объявление"], ["Смотреть объявления"]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    
+    # Проверяем наличие auth_token в /start параметре
+    if context.args and len(context.args) > 0:
+        auth_token = context.args[0]
+        
+        # Проверяем что это токен авторизации
+        if auth_token.startswith('auth_'):
+            user = update.message.from_user
+            
+            # Формируем данные пользователя
+            user_data = {
+                'id': user.id,
+                'first_name': user.first_name,
+                'last_name': user.last_name if user.last_name else '',
+                'username': user.username if user.username else '',
+                'auth_token': auth_token
+            }
+            
+            logger.info(f"QR-авторизация: пользователь {user.id} сканировал QR-код с токеном {auth_token}")
+            
+            # Отправляем данные на API сайта
+            try:
+                api_url = f"{API_BASE_URL}/api/telegram-auth"
+                payload = {
+                    'auth_token': auth_token,
+                    'user_data': {
+                        'id': user.id,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name if user.last_name else '',
+                        'username': user.username if user.username else ''
+                    }
+                }
+                
+                response = requests.post(api_url, json=payload, timeout=5)
+                
+                if response.status_code == 200:
+                    logger.info(f"Данные авторизации отправлены на сайт для токена {auth_token}")
+                else:
+                    logger.error(f"Ошибка отправки данных на сайт: {response.status_code}")
+            except Exception as e:
+                logger.error(f"Ошибка отправки данных на API: {e}")
+            
+            # Уведомляем пользователя
+            await update.message.reply_text(
+                f"✅ Авторизация успешна!\n\n"
+                f"Привет, {user.first_name}! 👋\n\n"
+                f"Теперь вы можете вернуться на сайт anonimka.online и продолжить работу.\n\n"
+                f"Ваш Telegram ID: {user.id}"
+            )
+            
+            return
+    
+    # Получаем статистику для отображения
+    total_users = 0
+    total_ads = 0
+    
+    try:
+        response = requests.get(f"{API_BASE_URL}/api/ads", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                ads_list = data.get('ads', [])
+                total_ads = len(ads_list)
+                
+                # Считаем уникальных пользователей
+                unique_users = set()
+                for ad in ads_list:
+                    if ad.get('tg_id'):
+                        unique_users.add(ad.get('tg_id'))
+                total_users = len(unique_users)
+    except Exception as e:
+        logger.error(f"Ошибка получения статистики: {e}")
+    
+    # Обычное приветствие если нет auth_token
+    # Формируем приветственное сообщение со статистикой
+    welcome_message = "🌟 Добро пожаловать в анонимную доску объявлений!\n\n"
+    
+    if total_users > 0:
+        welcome_message += f"👥 {total_users:,} пользователей\n"
+        welcome_message += f"📋 {total_ads:,} объявлений\n\n"
+    
+    welcome_message += "🌍 Сайт: anonimka.online\n\n"
+    welcome_message += "Откройте приложение для работы с объявлениями 👇"
+    
+    # Кнопка открытия WebApp
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🚀 Открыть приложение", web_app={"url": f"{API_BASE_URL}/webapp/"})]
+    ])
+    
     try:
         await update.message.reply_text(
-            "Добро пожаловать в анонимную доску объявлений! Выберите действие:",
-            reply_markup=reply_markup
+            welcome_message,
+            reply_markup=keyboard
         )
         logger.info("start: Главное меню отправлено")
     except Exception as e:
@@ -437,32 +526,223 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text("Действие отменено.")
     return ConversationHandler.END
 
+# Обработчик создания приватного чата
+async def handle_create_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Создание приватного чата между пользователями"""
+    query = update.callback_query
+    if not query:
+        return
+    
+    await query.answer()
+    
+    try:
+        # Парсим callback_data: create_chat_{ad_id}_{sender_tg_id}
+        parts = query.data.split('_')
+        ad_id = parts[2]
+        sender_tg_id = parts[3]
+        receiver_tg_id = query.from_user.id
+        
+        # Сохраняем активный чат
+        if 'active_chats' not in context.bot_data:
+            context.bot_data['active_chats'] = {}
+        
+        # Создаем двусторонний чат
+        chat_key = f"{sender_tg_id}_{receiver_tg_id}"
+        reverse_chat_key = f"{receiver_tg_id}_{sender_tg_id}"
+        
+        context.bot_data['active_chats'][chat_key] = {
+            'sender': sender_tg_id,
+            'receiver': receiver_tg_id,
+            'ad_id': ad_id,
+            'active': True
+        }
+        
+        context.bot_data['active_chats'][reverse_chat_key] = {
+            'sender': receiver_tg_id,
+            'receiver': sender_tg_id,
+            'ad_id': ad_id,
+            'active': True
+        }
+        
+        # Уведомляем получателя (автора объявления)
+        await query.message.edit_text(
+            "✅ Приватный чат создан!\n\n"
+            "Теперь вы можете общаться напрямую. "
+            "Все сообщения, которые вы отправите боту, будут переданы собеседнику.\n\n"
+            "Для завершения чата используйте команду /endchat"
+        )
+        
+        # Уведомляем отправителя
+        try:
+            await context.bot.send_message(
+                chat_id=sender_tg_id,
+                text="✅ Автор объявления принял ваш запрос!\n\n"
+                     "Приватный чат создан. Все сообщения, которые вы отправите боту, "
+                     "будут переданы собеседнику.\n\n"
+                     "Для завершения чата используйте команду /endchat"
+            )
+        except Exception as e:
+            logging.error(f"Error notifying sender: {e}")
+        
+        logging.info(f"Private chat created between {sender_tg_id} and {receiver_tg_id}")
+        
+    except Exception as e:
+        logging.error(f"Error creating private chat: {e}")
+        await query.message.reply_text("❌ Ошибка при создании чата. Попробуйте позже.")
+
+# Обработчик просмотра объявления
+async def handle_view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показать детали объявления"""
+    query = update.callback_query
+    if not query:
+        return
+    
+    await query.answer()
+    
+    try:
+        # Парсим callback_data: view_ad_{ad_id}
+        ad_id = query.data.split('_')[2]
+        
+        # Здесь нужно загрузить объявление из Supabase
+        # Пока просто сообщаем что функция в разработке
+        await query.message.reply_text(
+            f"📋 Просмотр объявления #{ad_id}\n\n"
+            "Функция в разработке. Скоро вы сможете видеть полную информацию об объявлении."
+        )
+        
+    except Exception as e:
+        logging.error(f"Error viewing ad: {e}")
+        await query.message.reply_text("❌ Ошибка при загрузке объявления.")
+
+# Обработчик завершения чата
+async def end_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Завершить приватный чат"""
+    if not update.message:
+        return
+    
+    user_id = update.message.from_user.id
+    
+    if 'active_chats' not in context.bot_data:
+        await update.message.reply_text("У вас нет активных чатов.")
+        return
+    
+    # Ищем активный чат пользователя
+    ended = False
+    for chat_key in list(context.bot_data['active_chats'].keys()):
+        chat = context.bot_data['active_chats'][chat_key]
+        if str(chat['sender']) == str(user_id) and chat['active']:
+            # Завершаем чат
+            chat['active'] = False
+            other_user = chat['receiver']
+            
+            # Уведомляем собеседника
+            try:
+                await context.bot.send_message(
+                    chat_id=other_user,
+                    text="❌ Собеседник завершил приватный чат."
+                )
+            except Exception as e:
+                logging.error(f"Error notifying other user: {e}")
+            
+            ended = True
+    
+    if ended:
+        await update.message.reply_text("✅ Приватный чат завершён.")
+    else:
+        await update.message.reply_text("У вас нет активных чатов.")
+
+# Пересылка сообщений в приватном чате
+async def relay_private_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Пересылка сообщений между пользователями в приватном чате"""
+    if not update.message or not update.message.text:
+        return
+    
+    user_id = update.message.from_user.id
+    
+    # Проверяем наличие активных чатов
+    if 'active_chats' not in context.bot_data:
+        return
+    
+    # Ищем активный чат для этого пользователя
+    for chat_key, chat in context.bot_data['active_chats'].items():
+        if str(chat['sender']) == str(user_id) and chat.get('active', False):
+            receiver_id = chat['receiver']
+            
+            # Пересылаем сообщение
+            try:
+                await context.bot.send_message(
+                    chat_id=receiver_id,
+                    text=f"💬 Сообщение от собеседника:\n\n{update.message.text}"
+                )
+                await update.message.reply_text("✅ Сообщение отправлено")
+                logging.info(f"Message relayed from {user_id} to {receiver_id}")
+                return
+            except Exception as e:
+                logging.error(f"Error relaying message: {e}")
+                await update.message.reply_text("❌ Ошибка при отправке сообщения")
+                return
+
+# Статистика пользователей
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает статистику: количество объявлений и пользователей"""
+    try:
+        # Получаем все объявления из API
+        response = requests.get(f"{API_BASE_URL}/api/ads")
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get('success'):
+                ads = data.get('ads', [])
+                total_ads = len(ads)
+                
+                # Считаем уникальных пользователей
+                unique_users = set()
+                for ad in ads:
+                    if ad.get('tg_id'):
+                        unique_users.add(ad.get('tg_id'))
+                
+                total_users = len(unique_users)
+                
+                # Формируем сообщение
+                stats_message = f"""
+📊 **Статистика платформы**
+
+👥 Пользователей: **{total_users:,}**
+📋 Объявлений: **{total_ads:,}**
+
+🌍 Сайт: anonimka.online
+"""
+                
+                await update.message.reply_text(
+                    stats_message,
+                    parse_mode='Markdown'
+                )
+                logging.info(f"Stats requested by {update.message.from_user.id}: {total_users} users, {total_ads} ads")
+            else:
+                await update.message.reply_text("❌ Не удалось получить статистику")
+        else:
+            await update.message.reply_text("❌ Ошибка при получении данных")
+            
+    except Exception as e:
+        logging.error(f"Error getting stats: {e}")
+        await update.message.reply_text("❌ Ошибка при получении статистики")
+
 if __name__ == "__main__":
     app = Application.builder().token(TOKEN).build()
 
-    conv_handler = ConversationHandler(
-        entry_points=[
-            MessageHandler(filters.Regex("^Подать объявление$"), ask_city)
-        ],
-        states={
-            ASK_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, city_input)],
-            ASK_GENDER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_target)],
-            ASK_TARGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_goal)],
-            ASK_GOAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_age_target_from)],
-            100: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_age_target_to)],
-            101: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_age)],
-            ASK_AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_body)],
-            ASK_BODY: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_text)],
-            ASK_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_ad)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)]
-    )
-
+    # Основные команды
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.Regex("^Смотреть объявления$"), show_ads))
-    app.add_handler(conv_handler)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, filter_ads))
+    app.add_handler(CommandHandler("stats", stats))  # Команда статистики
+    app.add_handler(CommandHandler("endchat", end_chat))
+    
+    # Обработчики для переписки между пользователями
     app.add_handler(CallbackQueryHandler(contact_author, pattern=r"^contact_\d+$"))
+    app.add_handler(CallbackQueryHandler(handle_create_chat, pattern=r"^create_chat_"))
+    app.add_handler(CallbackQueryHandler(handle_view_ad, pattern=r"^view_ad_"))
+    
+    # Обработчики сообщений для переписки
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, relay_private_message))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, relay_message))
 
     app.run_polling()
