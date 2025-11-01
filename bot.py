@@ -513,7 +513,12 @@ async def create_chat_from_notification(update: Update, context: ContextTypes.DE
         except Exception as e:
             logger.error(f"Не удалось уведомить отправителя {sender_id}: {e}")
         
-            logger.info(f"Чат {chat_id} создан из уведомления между {sender_id} и {recipient_id}")
+        logger.info(f"Чат {chat_id} создан из уведомления между {sender_id} и {recipient_id}")
+    
+    except Exception as e:
+        logger.error(f"Ошибка создания чата из уведомления: {e}")
+        if query and query.from_user:
+            await context.bot.send_message(query.from_user.id, "❌ Ошибка при создании чата. Попробуйте позже.")
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -623,13 +628,6 @@ async def send_photo_to_chat_callback(update: Update, context: ContextTypes.DEFA
     
     # Удаляем сохранённое фото
     del pending_photos[user_id]
-
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        
-    except Exception as e:
-        logger.error(f"Ошибка создания чата из уведомления: {e}")
-        await context.bot.send_message(query.from_user.id, "❌ Ошибка при создании чата. Попробуйте позже.")
 
 
 async def open_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
