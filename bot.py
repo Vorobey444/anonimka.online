@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Конфигурация
 TOKEN = "8400755138:AAGG-yNvQknz60IXM7xVHeN-xNtzjHFTG1U"
-API_BASE_URL = "https://anonimka.online"
+API_BASE_URL = "https://anonimka.kz"
 
 
 # ===== КОМАНДЫ =====
@@ -61,7 +61,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         welcome_message += f"👥 {total_users:,} пользователей\n"
         welcome_message += f"📋 {total_ads:,} объявлений\n\n"
     
-    welcome_message += "🌍 Сайт: anonimka.online\n\n"
+    welcome_message += "🌍 Сайт: anonimka.kz\n\n"
     welcome_message += "Откройте приложение для работы с объявлениями 👇"
     
     # Кнопка открытия WebApp
@@ -110,7 +110,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 👥 Пользователей: **{total_users:,}**
 📋 Объявлений: **{total_ads:,}**
 
-🌍 Сайт: anonimka.online
+🌍 Сайт: anonimka.kz
 """
         
         await update.message.reply_text(stats_message, parse_mode='Markdown')
