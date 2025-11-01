@@ -9,7 +9,7 @@
 import logging
 import aiohttp
 from datetime import datetime
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -35,6 +35,89 @@ API_BASE_URL = "https://anonimka.kz"
 # chat_invites[invite_id] = {sender, recipient, ad_id, message, timestamp}
 # active_chats[chat_id] = {user1, user2, ad_id, created_at, blocked_by: None/user_id}
 # user_chats[user_id] = [chat_id1, chat_id2, ...]
+
+
+# ===== ГЛАВНОЕ МЕНЮ =====
+
+def get_main_menu_keyboard():
+    """Возвращает основную клавиатуру меню"""
+    keyboard = [
+        [KeyboardButton("🚀 Открыть приложение"), KeyboardButton("💬 Мои чаты")],
+        [KeyboardButton("📋 Мои объявления"), KeyboardButton("❓ Помощь")]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+
+async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает главное меню"""
+    menu_text = (
+        "🌟 Главное меню\n\n"
+        "🚀 Открыть приложение - просмотр объявлений\n"
+        "💬 Мои чаты - список активных диалогов\n"
+        "📋 Мои объявления - управление объявлениями\n"
+        "❓ Помощь - инструкция по использованию"
+    )
+    
+    await update.message.reply_text(
+        menu_text,
+        reply_markup=get_main_menu_keyboard()
+    )
+
+
+async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик кнопок меню"""
+    if not update.message or not update.message.text:
+        return
+    
+    text = update.message.text
+    user_id = update.message.from_user.id
+    
+    if text == "🚀 Открыть приложение":
+        # Открываем WebApp
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 Открыть сайт", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp/"))]
+        ])
+        await update.message.reply_text(
+            "🚀 Нажмите кнопку ниже, чтобы открыть приложение:",
+            reply_markup=keyboard
+        )
+    
+    elif text == "💬 Мои чаты":
+        # Показываем список чатов
+        await my_chats(update, context)
+    
+    elif text == "📋 Мои объявления":
+        # Открываем раздел "Мои объявления" в WebApp
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📋 Открыть мои объявления", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp/#myads"))]
+        ])
+        await update.message.reply_text(
+            "📋 Управляйте своими объявлениями:",
+            reply_markup=keyboard
+        )
+    
+    elif text == "❓ Помощь":
+        help_text = (
+            "❓ Помощь по использованию бота\n\n"
+            "🌐 Сайт: anonimka.kz\n\n"
+            "📝 Как создать объявление:\n"
+            "1. Нажмите '🚀 Открыть приложение'\n"
+            "2. Заполните форму с описанием\n"
+            "3. Ваше объявление опубликовано!\n\n"
+            "💬 Как написать автору:\n"
+            "1. Откройте объявление\n"
+            "2. Нажмите 'Написать автору'\n"
+            "3. Отправьте сообщение\n"
+            "4. Автор получит уведомление здесь\n"
+            "5. Он может создать приватный чат\n\n"
+            "🔒 Ваши чаты полностью анонимны\n"
+            "🚫 Используйте /block чтобы заблокировать собеседника\n\n"
+            "Команды:\n"
+            "/start - Главное меню\n"
+            "/mychats - Список чатов\n"
+            "/block - Заблокировать текущий чат"
+        )
+        await update.message.reply_text(help_text)
 
 
 # ===== КОМАНДА START =====
@@ -105,22 +188,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'user_chats' not in context.bot_data:
         context.bot_data['user_chats'] = {}
     
-    # Приветственное сообщение
+    # Приветственное сообщение с меню
     welcome_message = (
         "🌟 Добро пожаловать в анонимную доску объявлений!\n\n"
         "🌍 Сайт: anonimka.kz\n\n"
-        "Откройте приложение для работы с объявлениями 👇"
+        "Используйте кнопки меню ниже для навигации 👇"
     )
-    
-    # Кнопка открытия WebApp
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp/"))]
-    ])
     
     try:
         await update.message.reply_text(
             welcome_message,
-            reply_markup=keyboard
+            reply_markup=get_main_menu_keyboard()
         )
         logger.info("Приветственное сообщение отправлено")
     except Exception as e:
@@ -497,9 +575,7 @@ async def my_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "📭 У вас нет активных чатов\n\n"
             "Откройте приложение для поиска объявлений 👇",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp/"))]
-            ])
+            reply_markup=get_main_menu_keyboard()
         )
         return
     
@@ -513,7 +589,7 @@ async def my_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     message += "\n💡 Просто отправьте сообщение для общения."
     
-    await update.message.reply_text(message, parse_mode='Markdown')
+    await update.message.reply_text(message, parse_mode='Markdown', reply_markup=get_main_menu_keyboard())
 
 
 async def block_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -758,6 +834,12 @@ def main():
     
     # Обработчик WebApp данных (для отправки первого сообщения)
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, send_first_message))
+    
+    # Обработчик кнопок меню
+    app.add_handler(MessageHandler(
+        filters.Regex(r"^(🚀 Открыть приложение|💬 Мои чаты|📋 Мои объявления|❓ Помощь)$"), 
+        handle_menu_buttons
+    ))
     
     # Обработчик текстовых сообщений (для чатов)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
