@@ -420,15 +420,21 @@ async def create_chat_from_notification(update: Update, context: ContextTypes.DE
     await query.answer()
     
     try:
-        # Парсим callback data: create_chat_{ad_id}_{sender_tg_id}
+        # Парсим callback data: create_chat_{ad_id}_{sender_tg_id}_{receiver_tg_id}
         parts = query.data.split('_')
-        if len(parts) < 4:
+        if len(parts) < 5:
             await context.bot.send_message(query.from_user.id, "❌ Неверный формат запроса")
             return
         
         ad_id = parts[2]
         sender_id = int(parts[3])
-        recipient_id = query.from_user.id  # Автор объявления, который нажал кнопку
+        recipient_id = int(parts[4])  # ID получателя из callback data
+        current_user = query.from_user.id  # Кто нажал кнопку
+        
+        # Проверка: кнопку должен нажать получатель
+        if current_user != recipient_id:
+            await context.bot.send_message(current_user, "❌ Эта кнопка предназначена для другого пользователя")
+            return
         
         # Проверка: нельзя создать чат с самим собой
         if sender_id == recipient_id:
