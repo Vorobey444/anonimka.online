@@ -7,6 +7,7 @@
 """
 
 import logging
+import aiohttp
 from datetime import datetime
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from telegram.ext import (
@@ -44,6 +45,54 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     user_id = update.message.from_user.id
+    user = update.message.from_user
+    
+    # Проверяем, есть ли параметр авторизации (для QR-кода)
+    if context.args and len(context.args) > 0:
+        auth_param = context.args[0]
+        
+        # Если это auth token из QR-кода
+        if auth_param.startswith('auth_'):
+            logger.info(f"QR-авторизация от пользователя {user_id}, token: {auth_param}")
+            
+            # Формируем данные пользователя
+            user_data = {
+                'id': user_id,
+                'first_name': user.first_name or '',
+                'last_name': user.last_name or '',
+                'username': user.username or '',
+            }
+            
+            # Отправляем данные на сервер для синхронизации с браузером
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"{API_BASE_URL}/api/auth",
+                        json={'token': auth_param, 'user': user_data},
+                        timeout=aiohttp.ClientTimeout(total=5)
+                    ) as response:
+                        if response.status == 200:
+                            logger.info(f"✅ Данные отправлены на сервер для токена {auth_param}")
+                        else:
+                            logger.error(f"❌ Ошибка отправки на сервер: {response.status}")
+            except Exception as e:
+                logger.error(f"❌ Ошибка при отправке данных на сервер: {e}")
+            
+            # Отправляем подтверждение пользователю
+            await update.message.reply_text(
+                f"✅ Авторизация успешна!\n\n"
+                f"👤 {user.first_name}\n"
+                f"💻 Окно авторизации на компьютере закроется автоматически\n"
+                f"🌐 Вы также можете открыть сайт в Telegram\n\n"
+                f"Теперь вы можете пользоваться сайтом как с компьютера, так и с телефона!",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🌐 Открыть сайт в Telegram", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp/"))]
+                ])
+            )
+            
+            logger.info(f"QR-авторизация завершена для {user_id}, данные: {user_data}")
+            return
+    
     logger.info(f"Команда /start от пользователя {user_id}")
     
     # Инициализируем хранилища данных
@@ -278,6 +327,112 @@ async def accept_invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Не удалось уведомить отправителя: {e}")
     
     logger.info(f"Чат {chat_id} создан между {sender_id} и {recipient_id}")
+
+
+async def create_chat_from_notification(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Создает приватный чат из уведомления (callback от API)
+    Формат: create_chat_{ad_id}_{sender_tg_id}
+    """
+    query = update.callback_query
+    if not query or not query.data:
+        return
+    
+    await query.answer()
+    
+    try:
+        # Парсим callback data: create_chat_{ad_id}_{sender_tg_id}
+        parts = query.data.split('_')
+        if len(parts) < 4:
+            await context.bot.send_message(query.from_user.id, "❌ Неверный формат запроса")
+            return
+        
+        ad_id = parts[2]
+        sender_id = int(parts[3])
+        recipient_id = query.from_user.id  # Автор объявления, который нажал кнопку
+        
+        # Проверка: нельзя создать чат с самим собой
+        if sender_id == recipient_id:
+            await context.bot.send_message(recipient_id, "❌ Ошибка: нельзя создать чат с самим собой")
+            return
+        
+        # Создаем уникальный ID чата
+        chat_id = f"{min(sender_id, recipient_id)}_{max(sender_id, recipient_id)}_{ad_id}"
+        
+        # Инициализация хранилищ
+        if 'active_chats' not in context.bot_data:
+            context.bot_data['active_chats'] = {}
+        if 'user_chats' not in context.bot_data:
+            context.bot_data['user_chats'] = {}
+        
+        # Проверяем, не существует ли уже чат
+        if chat_id in context.bot_data['active_chats']:
+            existing_chat = context.bot_data['active_chats'][chat_id]
+            if existing_chat.get('blocked_by'):
+                await context.bot.send_message(
+                    recipient_id, 
+                    "❌ Этот чат был заблокирован. Невозможно возобновить общение."
+                )
+                return
+            else:
+                await context.bot.send_message(
+                    recipient_id,
+                    f"✅ Чат уже существует!\n\n"
+                    f"📋 Объявление: #{ad_id}\n\n"
+                    f"💬 Можете продолжить общение.\n\n"
+                    f"Команды:\n"
+                    f"/mychats - список активных чатов\n"
+                    f"/block - заблокировать собеседника"
+                )
+                return
+        
+        # Создаем новый чат
+        context.bot_data['active_chats'][chat_id] = {
+            'user1': sender_id,
+            'user2': recipient_id,
+            'ad_id': ad_id,
+            'created_at': datetime.now().isoformat(),
+            'blocked_by': None
+        }
+        
+        # Добавляем чат в список чатов пользователей
+        for user_id in [sender_id, recipient_id]:
+            if user_id not in context.bot_data['user_chats']:
+                context.bot_data['user_chats'][user_id] = []
+            if chat_id not in context.bot_data['user_chats'][user_id]:
+                context.bot_data['user_chats'][user_id].append(chat_id)
+        
+        # Уведомляем автора объявления (получателя)
+        await context.bot.send_message(
+            recipient_id,
+            f"✅ Приватный чат создан!\n\n"
+            f"📋 Объявление: #{ad_id}\n\n"
+            f"💬 Теперь вы можете отправлять сообщения анонимно.\n"
+            f"Просто напишите сообщение, и оно будет доставлено собеседнику.\n\n"
+            f"Команды:\n"
+            f"/mychats - список активных чатов\n"
+            f"/block - заблокировать собеседника"
+        )
+        
+        # Уведомляем отправителя
+        try:
+            await context.bot.send_message(
+                sender_id,
+                f"✅ Автор объявления #{ad_id} принял ваш запрос!\n\n"
+                f"💬 Приватный чат создан. Можете начать общение.\n"
+                f"Просто напишите сообщение.\n\n"
+                f"Команды:\n"
+                f"/mychats - список активных чатов\n"
+                f"/block - заблокировать собеседника"
+            )
+        except Exception as e:
+            logger.error(f"Не удалось уведомить отправителя {sender_id}: {e}")
+        
+        logger.info(f"Чат {chat_id} создан из уведомления между {sender_id} и {recipient_id}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка создания чата из уведомления: {e}")
+        await context.bot.send_message(query.from_user.id, "❌ Ошибка при создании чата. Попробуйте позже.")
 
 
 async def decline_invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -595,6 +750,7 @@ def main():
     app.add_handler(CommandHandler("block", block_user))
     
     # Callback обработчики
+    app.add_handler(CallbackQueryHandler(create_chat_from_notification, pattern=r"^create_chat_"))
     app.add_handler(CallbackQueryHandler(accept_invite, pattern=r"^accept_"))
     app.add_handler(CallbackQueryHandler(decline_invite, pattern=r"^decline_"))
     app.add_handler(CallbackQueryHandler(block_callback, pattern=r"^block_"))
