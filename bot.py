@@ -513,7 +513,119 @@ async def create_chat_from_notification(update: Update, context: ContextTypes.DE
         except Exception as e:
             logger.error(f"Не удалось уведомить отправителя {sender_id}: {e}")
         
-        logger.info(f"Чат {chat_id} создан из уведомления между {sender_id} и {recipient_id}")
+            logger.info(f"Чат {chat_id} создан из уведомления между {sender_id} и {recipient_id}")
+
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик фотографий - пересылает их в активные чаты"""
+    if not update.message or not update.message.photo or not update.message.from_user:
+        return
+    
+    user_id = update.message.from_user.id
+    photo = update.message.photo[-1]  # Берём самое большое фото
+    caption = update.message.caption or ""
+    
+    # Получаем активные чаты пользователя
+    user_chat_ids = context.bot_data.get('user_chats', {}).get(user_id, [])
+    active_chats_data = context.bot_data.get('active_chats', {})
+    
+    # Фильтруем активные и незаблокированные чаты
+    available_chats = []
+    for chat_id in user_chat_ids:
+        if chat_id in active_chats_data:
+            chat = active_chats_data[chat_id]
+            if not chat.get('blocked_by'):
+                available_chats.append((chat_id, chat))
+    
+    if not available_chats:
+        # Нет активных чатов
+        await update.message.reply_text(
+            "📭 У вас нет активных чатов\n\n"
+            "Откройте приложение для поиска объявлений 👇",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp/"))]
+            ])
+        )
+        return
+    
+    # Если один активный чат - отправляем сразу
+    if len(available_chats) == 1:
+        chat_id, chat = available_chats[0]
+        await _send_photo_to_chat(context, user_id, chat_id, chat, photo.file_id, caption)
+        await update.message.reply_text("✅ Фото отправлено!")
+        return
+    
+    # Если несколько чатов - сохраняем фото и предлагаем выбрать
+    if 'pending_photos' not in context.bot_data:
+        context.bot_data['pending_photos'] = {}
+    
+    context.bot_data['pending_photos'][user_id] = {
+        'file_id': photo.file_id,
+        'caption': caption
+    }
+    
+    # Создаем кнопки выбора чата
+    keyboard = []
+    for chat_id, chat in available_chats:
+        ad_id = chat.get('ad_id', 'N/A')
+        keyboard.append([
+            InlineKeyboardButton(
+                f"Отправить в чат по объявлению #{ad_id}",
+                callback_data=f"sendphoto_{chat_id}"
+            )
+        ])
+    
+    await update.message.reply_text(
+        "📷 Кому отправить фото?",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def send_photo_to_chat_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик callback для отправки фото в выбранный чат"""
+    query = update.callback_query
+    if not query or not query.data or not query.from_user:
+        return
+    
+    await query.answer()
+    
+    user_id = query.from_user.id
+    chat_id = query.data.replace("sendphoto_", "")
+    
+    # Получаем сохранённое фото
+    pending_photos = context.bot_data.get('pending_photos', {})
+    photo_data = pending_photos.get(user_id)
+    
+    if not photo_data:
+        await context.bot.send_message(user_id, "❌ Фото не найдено. Отправьте заново.")
+        return
+    
+    # Получаем информацию о чате
+    active_chats = context.bot_data.get('active_chats', {})
+    
+    if chat_id not in active_chats:
+        await context.bot.send_message(user_id, "❌ Чат не найден")
+        return
+    
+    chat = active_chats[chat_id]
+    
+    # Проверяем, не заблокирован ли чат
+    if chat.get('blocked_by'):
+        await context.bot.send_message(user_id, "❌ Этот чат заблокирован")
+        return
+    
+    # Отправляем фото
+    await _send_photo_to_chat(
+        context, user_id, chat_id, chat, 
+        photo_data['file_id'], photo_data['caption']
+    )
+    await context.bot.send_message(user_id, "✅ Фото отправлено!")
+    
+    # Удаляем сохранённое фото
+    del pending_photos[user_id]
+
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     except Exception as e:
         logger.error(f"Ошибка создания чата из уведомления: {e}")
@@ -942,6 +1054,32 @@ async def _send_message_to_chat(context: ContextTypes.DEFAULT_TYPE, sender_id: i
         raise  # Пробрасываем ошибку выше для обработки
 
 
+async def _send_photo_to_chat(context: ContextTypes.DEFAULT_TYPE, sender_id: int, chat_id: str, chat: dict, photo_file_id: str, caption: str = ""):
+    """Вспомогательная функция для отправки фото в чат"""
+    # Определяем получателя
+    recipient_id = chat['user2'] if sender_id == chat['user1'] else chat['user1']
+    ad_id = chat.get('ad_id', 'N/A')
+    
+    try:
+        # Формируем caption с информацией о чате
+        full_caption = f"📷 Анонимное фото (объявление #{ad_id})"
+        if caption:
+            full_caption += f"\n\n{caption}"
+        
+        # Отправляем фото получателю
+        await context.bot.send_photo(
+            chat_id=recipient_id,
+            photo=photo_file_id,
+            caption=full_caption
+        )
+        
+        logger.info(f"Фото отправлено от {sender_id} к {recipient_id} в чате {chat_id}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка отправки фото: {e}")
+        raise
+
+
 
 # ===== ГЛАВНАЯ ФУНКЦИЯ =====
 
@@ -964,6 +1102,7 @@ def main():
     app.add_handler(CallbackQueryHandler(decline_invite, pattern=r"^decline_"))
     app.add_handler(CallbackQueryHandler(block_callback, pattern=r"^block_"))
     app.add_handler(CallbackQueryHandler(send_to_chat_callback, pattern=r"^sendto_"))
+    app.add_handler(CallbackQueryHandler(send_photo_to_chat_callback, pattern=r"^sendphoto_"))
     
     # Обработчик WebApp данных (для отправки первого сообщения)
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, send_first_message))
@@ -973,6 +1112,9 @@ def main():
         filters.Regex(r"^(🚀 Открыть приложение|💬 Мои чаты|📋 Мои объявления|❓ Помощь)$"), 
         handle_menu_buttons
     ))
+    
+    # Обработчик фото (для приватных чатов)
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     
     # Обработчик текстовых сообщений (для чатов)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
