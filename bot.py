@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 # Конфигурация
 TOKEN = "8105244538:AAFosyTcD8uPuwArnYgBO-IVeSThzuxbLhY"
 API_BASE_URL = "https://anonimka.kz"
+VERCEL_API_URL = "https://anonimka.online/api"
 
 # Хранилища данных
 # sent_messages[sender_id][ad_id] = True - отслеживание отправленных сообщений
@@ -529,20 +530,40 @@ async def open_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id = query.data.replace("open_chat_", "")
         user_id = query.from_user.id
         
-        # Проверяем существование чата
-        active_chats = context.bot_data.get('active_chats', {})
-        
-        if chat_id not in active_chats:
-            await context.bot.send_message(
-                user_id,
-                "❌ Чат не найден. Возможно он был удален."
-            )
-            return
-        
-        chat = active_chats[chat_id]
+        # Загружаем чат из API (Supabase)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{VERCEL_API_URL}/create-chat?chat_id={chat_id}") as response:
+                if response.status != 200:
+                    await context.bot.send_message(
+                        user_id,
+                        "❌ Ошибка загрузки чата. Попробуйте позже."
+                    )
+                    return
+                
+                result = await response.json()
+                
+                if not result.get('success') or not result.get('data'):
+                    await context.bot.send_message(
+                        user_id,
+                        "❌ Чат не найден в базе данных."
+                    )
+                    return
+                
+                chats = result['data']
+                if not chats or len(chats) == 0:
+                    await context.bot.send_message(
+                        user_id,
+                        "❌ Чат не найден. Возможно он был удален."
+                    )
+                    return
+                
+                chat = chats[0]
         
         # Проверяем, что пользователь участник чата
-        if user_id not in [chat['user1'], chat['user2']]:
+        user1_id = chat.get('user1_tg_id')
+        user2_id = chat.get('user2_tg_id')
+        
+        if user_id not in [user1_id, user2_id]:
             await context.bot.send_message(
                 user_id,
                 "❌ У вас нет доступа к этому чату"
@@ -550,7 +571,7 @@ async def open_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         # Проверяем, не заблокирован ли чат
-        if chat.get('blocked_by'):
+        if not chat.get('is_active'):
             await context.bot.send_message(
                 user_id,
                 "❌ Этот чат заблокирован"
@@ -558,8 +579,31 @@ async def open_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         # Определяем собеседника
-        other_user_id = chat['user2'] if user_id == chat['user1'] else chat['user1']
+        other_user_id = user2_id if user_id == user1_id else user1_id
         ad_id = chat.get('ad_id', 'неизвестно')
+        
+        # Сохраняем чат в bot_data для отправки сообщений
+        if 'active_chats' not in context.bot_data:
+            context.bot_data['active_chats'] = {}
+        if 'user_chats' not in context.bot_data:
+            context.bot_data['user_chats'] = {}
+        
+        # Добавляем в память бота если еще нет
+        if chat_id not in context.bot_data['active_chats']:
+            context.bot_data['active_chats'][chat_id] = {
+                'user1': user1_id,
+                'user2': user2_id,
+                'ad_id': ad_id,
+                'created_at': chat.get('created_at'),
+                'blocked_by': chat.get('blocked_by')
+            }
+            
+            # Добавляем в списки чатов пользователей
+            for uid in [user1_id, user2_id]:
+                if uid not in context.bot_data['user_chats']:
+                    context.bot_data['user_chats'][uid] = []
+                if chat_id not in context.bot_data['user_chats'][uid]:
+                    context.bot_data['user_chats'][uid].append(chat_id)
         
         # Отправляем информацию о чате
         message = (
@@ -585,7 +629,7 @@ async def open_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=keyboard
         )
         
-        logger.info(f"Пользователь {user_id} открыл чат {chat_id}")
+        logger.info(f"Пользователь {user_id} открыл чат {chat_id} из Supabase")
         
     except Exception as e:
         logger.error(f"Ошибка открытия чата: {e}")
