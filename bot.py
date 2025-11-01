@@ -513,6 +513,88 @@ async def create_chat_from_notification(update: Update, context: ContextTypes.DE
         await context.bot.send_message(query.from_user.id, "❌ Ошибка при создании чата. Попробуйте позже.")
 
 
+async def open_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Открывает приватный чат (показывает информацию о чате)
+    Формат callback: open_chat_{chat_id}
+    """
+    query = update.callback_query
+    if not query or not query.data:
+        return
+    
+    await query.answer()
+    
+    try:
+        # Парсим callback data: open_chat_{chat_id}
+        chat_id = query.data.replace("open_chat_", "")
+        user_id = query.from_user.id
+        
+        # Проверяем существование чата
+        active_chats = context.bot_data.get('active_chats', {})
+        
+        if chat_id not in active_chats:
+            await context.bot.send_message(
+                user_id,
+                "❌ Чат не найден. Возможно он был удален."
+            )
+            return
+        
+        chat = active_chats[chat_id]
+        
+        # Проверяем, что пользователь участник чата
+        if user_id not in [chat['user1'], chat['user2']]:
+            await context.bot.send_message(
+                user_id,
+                "❌ У вас нет доступа к этому чату"
+            )
+            return
+        
+        # Проверяем, не заблокирован ли чат
+        if chat.get('blocked_by'):
+            await context.bot.send_message(
+                user_id,
+                "❌ Этот чат заблокирован"
+            )
+            return
+        
+        # Определяем собеседника
+        other_user_id = chat['user2'] if user_id == chat['user1'] else chat['user1']
+        ad_id = chat.get('ad_id', 'неизвестно')
+        
+        # Отправляем информацию о чате
+        message = (
+            f"💬 <b>Приватный чат открыт</b>\n\n"
+            f"📋 Объявление: #{ad_id}\n"
+            f"👤 Собеседник: ID {other_user_id}\n\n"
+            f"✍️ Напишите сообщение, и оно будет доставлено собеседнику.\n\n"
+            f"<b>Команды:</b>\n"
+            f"/mychats - список активных чатов\n"
+            f"/block - заблокировать этот чат"
+        )
+        
+        # Кнопки для быстрых действий
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp/"))],
+            [InlineKeyboardButton("🚫 Заблокировать чат", callback_data=f"block_{chat_id}")]
+        ])
+        
+        await context.bot.send_message(
+            user_id,
+            message,
+            parse_mode='HTML',
+            reply_markup=keyboard
+        )
+        
+        logger.info(f"Пользователь {user_id} открыл чат {chat_id}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка открытия чата: {e}")
+        await context.bot.send_message(
+            query.from_user.id,
+            "❌ Ошибка при открытии чата. Попробуйте позже."
+        )
+
+
 async def decline_invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отклоняет приглашение в чат"""
     query = update.callback_query
@@ -827,6 +909,7 @@ def main():
     
     # Callback обработчики
     app.add_handler(CallbackQueryHandler(create_chat_from_notification, pattern=r"^create_chat_"))
+    app.add_handler(CallbackQueryHandler(open_chat, pattern=r"^open_chat_"))
     app.add_handler(CallbackQueryHandler(accept_invite, pattern=r"^accept_"))
     app.add_handler(CallbackQueryHandler(decline_invite, pattern=r"^decline_"))
     app.add_handler(CallbackQueryHandler(block_callback, pattern=r"^block_"))
