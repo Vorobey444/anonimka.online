@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Конфигурация
 TOKEN = "8105244538:AAFosyTcD8uPuwArnYgBO-IVeSThzuxbLhY"
-API_BASE_URL = "https://anonimka.online"  # Vercel deployment
+API_BASE_URL = "https://anonimka.kz"
 VERCEL_API_URL = "https://anonimka.online/api"
 
 # Хранилища данных
