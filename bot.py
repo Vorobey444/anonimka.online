@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 TOKEN = "8105244538:AAFosyTcD8uPuwArnYgBO-IVeSThzuxbLhY"
 API_BASE_URL = "https://anonimka.kz"
 VERCEL_API_URL = "https://anonimka.online/api"
+SUPABASE_URL = "https://vcxknlntcvcdowdohblr.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjeGtubG50Y3ZjZG93ZG9oYmxyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAwMzExNTcsImV4cCI6MjA0NTYwNzE1N30.GfHTJ6d54L3c29D_FeQRJf2-5OlTATfO-QyQ9mGpbao"
 
 # Хранилища данных
 # sent_messages[sender_id][ad_id] = True - отслеживание отправленных сообщений
@@ -39,6 +41,34 @@ VERCEL_API_URL = "https://anonimka.online/api"
 
 
 # ===== ГЛАВНОЕ МЕНЮ =====
+
+async def get_user_nickname(telegram_id: int) -> str:
+    """Получает никнейм пользователя из Supabase"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': f'Bearer {SUPABASE_ANON_KEY}'
+            }
+            url = f"{SUPABASE_URL}/rest/v1/ads?telegram_id=eq.{telegram_id}&select=nickname&order=created_at.desc&limit=1"
+            
+            async with session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data and len(data) > 0 and data[0].get('nickname'):
+                        nickname = data[0]['nickname']
+                        logger.info(f"Получен никнейм для {telegram_id}: {nickname}")
+                        return nickname
+                    else:
+                        logger.info(f"Никнейм не найден для {telegram_id}, используем 'Аноним'")
+                        return "Аноним"
+                else:
+                    logger.warning(f"Ошибка получения никнейма: {response.status}")
+                    return "Аноним"
+    except Exception as e:
+        logger.error(f"Ошибка получения никнейма для {telegram_id}: {e}")
+        return "Аноним"
+
 
 def get_main_menu_keyboard():
     """Возвращает основную клавиатуру меню"""
@@ -300,10 +330,14 @@ async def send_first_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
         ]
     ])
     
+    # Получаем никнейм отправителя
+    sender_nickname = await get_user_nickname(sender_tg_id)
+    
     try:
         await context.bot.send_message(
             author_tg_id,
-            f"💬 Новое сообщение по вашему объявлению #{ad_id}!\n\n"
+            f"� Новое сообщение на ваше объявление #{ad_id}!\n\n"
+            f"От: {sender_nickname}\n\n"
             f"📩 Сообщение:\n{message_text}\n\n"
             f"Принять запрос на анонимный чат?",
             reply_markup=keyboard
@@ -1127,14 +1161,17 @@ async def _send_message_to_chat(context: ContextTypes.DEFAULT_TYPE, sender_id: i
     recipient_id = chat['user2'] if sender_id == chat['user1'] else chat['user1']
     ad_id = chat.get('ad_id', 'N/A')
     
+    # Получаем никнейм отправителя
+    sender_nickname = await get_user_nickname(sender_id)
+    
     try:
-        # Отправляем анонимное сообщение получателю
+        # Отправляем сообщение с никнеймом отправителя
         await context.bot.send_message(
             recipient_id,
-            f"💬 Анонимное сообщение (объявление #{ad_id}):\n\n{message_text}"
+            f"💬 Сообщение от {sender_nickname} (объявление #{ad_id}):\n\n{message_text}"
         )
         
-        logger.info(f"Сообщение отправлено от {sender_id} к {recipient_id} в чате {chat_id}")
+        logger.info(f"Сообщение отправлено от {sender_id} ({sender_nickname}) к {recipient_id} в чате {chat_id}")
         
     except Exception as e:
         logger.error(f"Ошибка отправки сообщения: {e}")
@@ -1147,9 +1184,12 @@ async def _send_photo_to_chat(context: ContextTypes.DEFAULT_TYPE, sender_id: int
     recipient_id = chat['user2'] if sender_id == chat['user1'] else chat['user1']
     ad_id = chat.get('ad_id', 'N/A')
     
+    # Получаем никнейм отправителя
+    sender_nickname = await get_user_nickname(sender_id)
+    
     try:
-        # Формируем caption с информацией о чате
-        full_caption = f"📷 Анонимное фото (объявление #{ad_id})"
+        # Формируем caption с никнеймом отправителя
+        full_caption = f"📷 Фото от {sender_nickname} (объявление #{ad_id})"
         if caption:
             full_caption += f"\n\n{caption}"
         
@@ -1160,7 +1200,7 @@ async def _send_photo_to_chat(context: ContextTypes.DEFAULT_TYPE, sender_id: int
             caption=full_caption
         )
         
-        logger.info(f"Фото отправлено от {sender_id} к {recipient_id} в чате {chat_id}")
+        logger.info(f"Фото отправлено от {sender_id} ({sender_nickname}) к {recipient_id} в чате {chat_id}")
         
     except Exception as e:
         logger.error(f"Ошибка отправки фото: {e}")
