@@ -73,7 +73,7 @@ async def get_user_nickname(telegram_id: int) -> str:
 def get_main_menu_keyboard():
     """Возвращает основную клавиатуру меню"""
     keyboard = [
-        [KeyboardButton("🚀 Открыть приложение"), KeyboardButton("💬 Мои чаты")],
+        [KeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp/")), KeyboardButton("💬 Мои чаты")],
         [KeyboardButton("📋 Мои объявления"), KeyboardButton("❓ Помощь")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -103,17 +103,10 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     text = update.message.text
     user_id = update.message.from_user.id
     
-    if text == "🚀 Открыть приложение":
-        # Открываем WebApp через inline кнопку (передаёт initData)
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 Открыть сайт", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp/"))]
-        ])
-        await update.message.reply_text(
-            "🚀 Нажмите кнопку ниже, чтобы открыть приложение:",
-            reply_markup=keyboard
-        )
+    # Кнопка "🚀 Открыть приложение" теперь открывает WebApp напрямую через web_app параметр
+    # Не требует обработки здесь
     
-    elif text == "💬 Мои чаты":
+    if text == "💬 Мои чаты":
         # Показываем список чатов
         await my_chats(update, context)
     
@@ -1235,9 +1228,9 @@ def main():
     # Обработчик WebApp данных (для отправки первого сообщения)
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, send_first_message))
     
-    # Обработчик кнопок меню
+    # Обработчик кнопок меню (убрали "Открыть приложение" - теперь работает через web_app)
     app.add_handler(MessageHandler(
-        filters.Regex(r"^(🚀 Открыть приложение|💬 Мои чаты|📋 Мои объявления|❓ Помощь)$"), 
+        filters.Regex(r"^(💬 Мои чаты|📋 Мои объявления|❓ Помощь)$"), 
         handle_menu_buttons
     ))
     
