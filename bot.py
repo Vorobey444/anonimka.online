@@ -522,7 +522,7 @@ async def create_chat_from_notification(update: Update, context: ContextTypes.DE
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик фотографий - пересылает их в активные чаты"""
+    """Обработчик фотографий - пересылает их в активный чат"""
     if not update.message or not update.message.photo or not update.message.from_user:
         return
     
@@ -553,14 +553,27 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    # Если один активный чат - отправляем сразу
+    # Проверяем, есть ли активный выбранный чат
+    active_chat_id = context.user_data.get('active_chat_id') if context.user_data else None
+    
+    # Если есть активный чат и он доступен - отправляем туда
+    if active_chat_id and active_chat_id in active_chats_data:
+        chat = active_chats_data[active_chat_id]
+        if not chat.get('blocked_by') and active_chat_id in [c[0] for c in available_chats]:
+            await _send_photo_to_chat(context, user_id, active_chat_id, chat, photo.file_id, caption)
+            await update.message.reply_text("✅ Фото отправлено в активный чат")
+            return
+    
+    # Если один активный чат - отправляем сразу и делаем его активным
     if len(available_chats) == 1:
         chat_id, chat = available_chats[0]
+        if context.user_data is not None:
+            context.user_data['active_chat_id'] = chat_id
         await _send_photo_to_chat(context, user_id, chat_id, chat, photo.file_id, caption)
         await update.message.reply_text("✅ Фото отправлено!")
         return
     
-    # Если несколько чатов - сохраняем фото и предлагаем выбрать
+    # Если несколько чатов и нет активного - сохраняем фото и предлагаем выбрать
     if 'pending_photos' not in context.bot_data:
         context.bot_data['pending_photos'] = {}
     
@@ -580,8 +593,14 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         ])
     
+    keyboard.append([
+        InlineKeyboardButton("📋 Мои чаты", callback_data="show_my_chats")
+    ])
+    
     await update.message.reply_text(
-        "📷 Кому отправить фото?",
+        "📷 Выберите чат для отправки фото:\n\n"
+        "💡 Совет: используйте /my_chats чтобы выбрать активный чат,\n"
+        "тогда все фото будут автоматически отправляться туда.",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -797,7 +816,7 @@ async def decline_invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ===== УПРАВЛЕНИЕ ЧАТАМИ =====
 
 async def my_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает список активных чатов пользователя"""
+    """Показывает список активных чатов пользователя с возможностью переключения"""
     if not update.message or not update.message.from_user:
         return
     
@@ -821,17 +840,35 @@ async def my_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    # Формируем список чатов
+    # Получаем текущий активный чат
+    current_chat_id = context.user_data.get('active_chat_id')
+    
+    # Формируем список чатов с кнопками
     message = f"💬 Ваши активные чаты ({len(active_chats)}):\n\n"
+    keyboard = []
     
     for chat_id, chat in active_chats:
         ad_id = chat.get('ad_id', 'N/A')
-        message += f"📋 Объявление #{ad_id}\n"
-        message += f"   Чат ID: `{chat_id}`\n\n"
+        
+        # Показываем индикатор активного чата
+        if chat_id == current_chat_id:
+            message += f"✅ Объявление #{ad_id} (активный)\n"
+            button_text = f"✅ Чат #{ad_id} (активный)"
+        else:
+            message += f"📋 Объявление #{ad_id}\n"
+            button_text = f"💬 Открыть чат #{ad_id}"
+        
+        keyboard.append([
+            InlineKeyboardButton(button_text, callback_data=f"openchat_{chat_id}")
+        ])
     
-    message += "\n💡 Просто отправьте сообщение для общения."
+    message += "\n💡 Выберите чат для общения.\n"
+    message += "Ваши сообщения будут отправляться в активный чат."
     
-    await update.message.reply_text(message, parse_mode='Markdown', reply_markup=get_main_menu_keyboard())
+    await update.message.reply_text(
+        message,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 
 async def block_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -899,6 +936,39 @@ async def block_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _block_chat(update, context, user_id, chat_id, chat, is_callback=True)
 
 
+async def open_chat_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик callback для открытия/переключения чата"""
+    query = update.callback_query
+    if not query or not query.data or not query.from_user:
+        return
+    
+    await query.answer()
+    
+    chat_id = query.data.replace("openchat_", "")
+    user_id = query.from_user.id
+    
+    active_chats = context.bot_data.get('active_chats', {})
+    
+    if chat_id not in active_chats:
+        await context.bot.send_message(user_id, "❌ Чат не найден")
+        return
+    
+    chat = active_chats[chat_id]
+    ad_id = chat.get('ad_id', 'N/A')
+    
+    # Сохраняем активный чат
+    context.user_data['active_chat_id'] = chat_id
+    
+    # Уведомляем пользователя
+    await context.bot.send_message(
+        user_id,
+        f"✅ Чат по объявлению #{ad_id} активирован\n\n"
+        f"💬 Теперь все ваши сообщения и фото будут отправляться в этот чат.\n"
+        f"Используйте /my_chats для переключения на другой чат."
+    )
+
+
+
 async def _block_chat(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, chat_id: str, chat: dict, is_callback: bool = False):
     """Вспомогательная функция для блокировки чата"""
     # Помечаем чат как заблокированный
@@ -931,7 +1001,7 @@ async def _block_chat(update: Update, context: ContextTypes.DEFAULT_TYPE, user_i
 # ===== ОБМЕН СООБЩЕНИЯМИ =====
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик текстовых сообщений - пересылает их в активные чаты"""
+    """Обработчик текстовых сообщений - пересылает их в активный чат"""
     if not update.message or not update.message.text or not update.message.from_user:
         return
     
@@ -961,14 +1031,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    # Если один активный чат - отправляем сразу
+    # Проверяем, есть ли активный выбранный чат
+    active_chat_id = context.user_data.get('active_chat_id') if context.user_data else None
+    
+    # Если есть активный чат и он доступен - отправляем туда
+    if active_chat_id and active_chat_id in active_chats_data:
+        chat = active_chats_data[active_chat_id]
+        if not chat.get('blocked_by') and active_chat_id in [c[0] for c in available_chats]:
+            await _send_message_to_chat(context, user_id, active_chat_id, chat, message_text)
+            await update.message.reply_text("✅ Сообщение отправлено в активный чат")
+            return
+    
+    # Если один активный чат - отправляем сразу и делаем его активным
     if len(available_chats) == 1:
         chat_id, chat = available_chats[0]
+        if context.user_data is not None:
+            context.user_data['active_chat_id'] = chat_id
         await _send_message_to_chat(context, user_id, chat_id, chat, message_text)
         await update.message.reply_text("✅ Сообщение отправлено!")
         return
     
-    # Если несколько чатов - предлагаем выбрать получателя
+    # Если несколько чатов и нет активного - предлагаем выбрать
     if 'pending_messages' not in context.bot_data:
         context.bot_data['pending_messages'] = {}
     
@@ -985,8 +1068,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         ])
     
+    keyboard.append([
+        InlineKeyboardButton("📋 Мои чаты", callback_data="show_my_chats")
+    ])
+    
     await update.message.reply_text(
-        "💬 Кому отправить сообщение?",
+        "💬 Выберите чат для отправки:\n\n"
+        "💡 Совет: используйте /my_chats чтобы выбрать активный чат,\n"
+        "тогда все сообщения будут автоматически отправляться туда.",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -1096,6 +1185,7 @@ def main():
     # Callback обработчики
     app.add_handler(CallbackQueryHandler(create_chat_from_notification, pattern=r"^create_chat_"))
     app.add_handler(CallbackQueryHandler(open_chat, pattern=r"^open_chat_"))
+    app.add_handler(CallbackQueryHandler(open_chat_callback, pattern=r"^openchat_"))
     app.add_handler(CallbackQueryHandler(accept_invite, pattern=r"^accept_"))
     app.add_handler(CallbackQueryHandler(decline_invite, pattern=r"^decline_"))
     app.add_handler(CallbackQueryHandler(block_callback, pattern=r"^block_"))
