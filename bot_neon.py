@@ -6,6 +6,7 @@ Telegram бот для anonimka.kz с интеграцией Neon PostgreSQL
 import os
 import logging
 import aiohttp
+from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import (
     Application,
@@ -15,6 +16,9 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
+
+# Загружаем переменные из .env файла
+load_dotenv()
 
 # Настройка логирования
 logging.basicConfig(
