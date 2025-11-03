@@ -255,9 +255,69 @@ async def show_my_chats_callback(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     await query.answer()
     
-    # Просто вызываем команду my_chats
-    update.message = query.message
-    await my_chats(update, context)
+    user_id = query.from_user.id
+    
+    try:
+        # Получаем чаты пользователя
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{API_BASE_URL}/api/neon-chats",
+                json={
+                    "action": "get-active",
+                    "params": {"userId": str(user_id)}
+                }
+            ) as response:
+                result = await response.json()
+                
+                if result.get('error'):
+                    await query.edit_message_text(
+                        "❌ Ошибка загрузки чатов\n\n"
+                        "Попробуйте позже или откройте приложение:",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))]
+                        ])
+                    )
+                    return
+                
+                chats = result.get('data', [])
+                
+                if not chats:
+                    await query.edit_message_text(
+                        "📭 У вас пока нет активных чатов\n\n"
+                        "Откройте приложение для поиска объявлений:",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))]
+                        ])
+                    )
+                    return
+                
+                # Формируем кнопки с чатами
+                keyboard = []
+                for chat in chats[:10]:  # Показываем максимум 10 чатов
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            f"💬 Чат по объявлению #{chat['ad_id']}",
+                            callback_data=f"openchat_{chat['id']}"
+                        )
+                    ])
+                
+                keyboard.append([
+                    InlineKeyboardButton("📱 Открыть в приложении", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))
+                ])
+                
+                await query.edit_message_text(
+                    f"💬 **Ваши активные чаты** ({len(chats)}):\n\n"
+                    f"Выберите чат для просмотра:",
+                    parse_mode='Markdown',
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+    
+    except Exception as e:
+        logger.error(f"Ошибка в show_my_chats_callback: {e}")
+        await query.edit_message_text(
+            "❌ Произошла ошибка\n\n"
+            "Попробуйте позже"
+        )
 
 def main():
     """Запуск бота"""
