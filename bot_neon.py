@@ -117,6 +117,10 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     message_text = update.message.text
     
+    # Игнорируем команды (на всякий случай)
+    if message_text.startswith('/'):
+        return
+    
     # Проверяем есть ли активный чат в контексте
     active_chat_id = context.user_data.get('active_chat_id') if context.user_data else None
     
