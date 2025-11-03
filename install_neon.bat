@@ -1,22 +1,21 @@
 @echo off
-chcp 65001 >nul
+chcp 65001 >nul 2>&1
 color 0E
-title 📦 Установка Neon Bot
+title Install Neon Bot
 
 echo.
-echo ╔═══════════════════════════════════════════════════╗
-echo ║           📦 УСТАНОВКА NEON BOT 📦              ║
-echo ╚═══════════════════════════════════════════════════╝
+echo ========================================================
+echo          INSTALL NEON BOT
+echo ========================================================
 echo.
-
-echo 🔧 Установка зависимостей...
+echo Installing dependencies...
 echo.
 
 "E:\my project\app chat\.venv\Scripts\python.exe" -m pip install python-telegram-bot aiohttp python-dotenv
 
 echo.
-echo ✅ Готово!
+echo Done!
 echo.
-echo 📝 Следующий шаг: создайте файл .env
+echo Next step: create .env file
 echo.
 pause
