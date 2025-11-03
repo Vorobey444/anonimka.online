@@ -1,53 +1,104 @@
-@echo off
-chcp 65001 >nul
-title 🌟 Анонимная доска объявлений - Киберпанк бот
+@echo off@echo off
+
+chcp 65001 >nulchcp 65001 >nul
+
+color 0Atitle 🌟 Анонимная доска объявлений - Киберпанк бот
+
+title 🚀 Neon Bot
 
 echo.
-echo ████████╗███████╗██╗     ███████╗ ██████╗ ██████╗  █████╗ ███╗   ███╗
-echo ╚══██╔══╝██╔════╝██║     ██╔════╝██╔════╝ ██╔══██╗██╔══██╗████╗ ████║
-echo    ██║   █████╗  ██║     █████╗  ██║  ███╗██████╔╝███████║██╔████╔██║
-echo    ██║   ██╔══╝  ██║     ██╔══╝  ██║   ██║██╔══██╗██╔══██║██║╚██╔╝██║
-echo    ██║   ███████╗███████╗███████╗╚██████╔╝██║  ██║██║  ██║██║ ╚═╝ ██║
-echo    ╚═╝   ╚══════╝╚══════╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
-echo.
-echo 🎭 АНОНИМНАЯ ДОСКА ОБЪЯВЛЕНИЙ 🎭
-echo 🌆 Киберпанк стиль • Неоновые эффекты • Mini App
+
+clsecho ████████╗███████╗██╗     ███████╗ ██████╗ ██████╗  █████╗ ███╗   ███╗
+
+echo.echo ╚══██╔══╝██╔════╝██║     ██╔════╝██╔════╝ ██╔══██╗██╔══██╗████╗ ████║
+
+echo ╔═══════════════════════════════════════════════════╗echo    ██║   █████╗  ██║     █████╗  ██║  ███╗██████╔╝███████║██╔████╔██║
+
+echo ║        🔥 NEON BOT - WEBAPP SYNC 🔥              ║echo    ██║   ██╔══╝  ██║     ██╔══╝  ██║   ██║██╔══██╗██╔══██║██║╚██╔╝██║
+
+echo ╚═══════════════════════════════════════════════════╝echo    ██║   ███████╗███████╗███████╗╚██████╔╝██║  ██║██║  ██║██║ ╚═╝ ██║
+
+echo.echo    ╚═╝   ╚══════╝╚══════╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
+
 echo.
 
-:menu
-echo ════════════════════════════════════════════════════════════════════
-echo 🚀 ВЫБЕРИТЕ РЕЖИМ ЗАПУСКА:
-echo ════════════════════════════════════════════════════════════════════
-echo.
-echo [1] 🤖 Классический бот (кнопки в Telegram)
+REM Проверка .env файлаecho 🎭 АНОНИМНАЯ ДОСКА ОБЪЯВЛЕНИЙ 🎭
+
+if exist .env (echo 🌆 Киберпанк стиль • Неоновые эффекты • Mini App
+
+    echo ✅ Загрузка .env...echo.
+
+    for /f "usebackq tokens=1,2 delims==" %%a in (.env) do (
+
+        if "%%a"=="TELEGRAM_BOT_TOKEN" set TELEGRAM_BOT_TOKEN=%%b:menu
+
+        if "%%a"=="VERCEL_API_URL" set VERCEL_API_URL=%%becho ════════════════════════════════════════════════════════════════════
+
+    )echo 🚀 ВЫБЕРИТЕ РЕЖИМ ЗАПУСКА:
+
+) else (echo ════════════════════════════════════════════════════════════════════
+
+    echo ⚠️  Файл .env не найденecho.
+
+)echo [1] 🤖 Классический бот (кнопки в Telegram)
+
 echo [2] 🌐 Mini App бот (веб-приложение)  
-echo [3] � НОВЫЙ: Neon бот (синхронизация с WebApp)
-echo [4] �🖥️  Запуск веб-сервера (для разработки)
-echo [5] 🔧 Запуск всего (сервер + Mini App бот)
-echo [6] 📦 Установка зависимостей
-echo [7] 🔍 Диагностика Python
-echo [8] ❌ Выход
-echo.
-set /p choice="Введите номер (1-8): "
 
-if "%choice%"=="1" goto classic_bot
-if "%choice%"=="2" goto webapp_bot  
-if "%choice%"=="3" goto neon_bot
-if "%choice%"=="4" goto web_server
+REM Проверка токенаecho [3] � НОВЫЙ: Neon бот (синхронизация с WebApp)
+
+if not defined TELEGRAM_BOT_TOKEN (echo [4] �🖥️  Запуск веб-сервера (для разработки)
+
+    echo.echo [5] 🔧 Запуск всего (сервер + Mini App бот)
+
+    echo ❌ ОШИБКА: Не найден TELEGRAM_BOT_TOKENecho [6] 📦 Установка зависимостей
+
+    echo.echo [7] 🔍 Диагностика Python
+
+    echo 📝 Создайте файл .env:echo [8] ❌ Выход
+
+    echo.echo.
+
+    echo    TELEGRAM_BOT_TOKEN=your_token_hereset /p choice="Введите номер (1-8): "
+
+    echo    VERCEL_API_URL=https://anonimka.kz
+
+    echo.if "%choice%"=="1" goto classic_bot
+
+    pauseif "%choice%"=="2" goto webapp_bot  
+
+    exit /b 1if "%choice%"=="3" goto neon_bot
+
+)if "%choice%"=="4" goto web_server
+
 if "%choice%"=="5" goto full_stack
-if "%choice%"=="6" goto install_deps
-if "%choice%"=="7" goto check_python
-if "%choice%"=="8" goto exit
-echo ❌ Неверный выбор! Попробуйте снова.
-echo.
-goto menu
 
-:install_deps
+REM URL по умолчаниюif "%choice%"=="6" goto install_deps
+
+if not defined VERCEL_API_URL set VERCEL_API_URL=https://anonimka.kzif "%choice%"=="7" goto check_python
+
+if "%choice%"=="8" goto exit
+
+echo ✅ Token: %TELEGRAM_BOT_TOKEN:~0,10%...echo ❌ Неверный выбор! Попробуйте снова.
+
+echo ✅ API: %VERCEL_API_URL%echo.
+
+echo.goto menu
+
+echo 🚀 Запуск...
+
+echo.:install_deps
+
 echo.
-echo 📦 Установка зависимостей...
+
+"E:\my project\app chat\.venv\Scripts\python.exe" bot_neon.pyecho 📦 Установка зависимостей...
+
 echo ════════════════════════════════════════════════════════════════
-call install.bat
-goto menu
+
+echo.call install.bat
+
+echo 🛑 Остановленgoto menu
+
+pause
 
 :check_python
 echo.
