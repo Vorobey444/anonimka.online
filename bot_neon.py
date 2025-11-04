@@ -36,15 +36,94 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start - приветствие и открытие WebApp"""
     user = update.effective_user
     
+    # Проверяем параметр start (для авторизации через Deep Link)
+    if context.args and len(context.args) > 0:
+        auth_token = context.args[0]
+        
+        # Если это токен авторизации
+        if auth_token.startswith('auth_'):
+            logger.info(f"🔐 Авторизация пользователя {user.id} через Deep Link с токеном {auth_token}")
+            
+            # Отправляем данные пользователя на сервер
+            try:
+                async with aiohttp.ClientSession() as session:
+                    user_data = {
+                        'id': user.id,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name or '',
+                        'username': user.username or '',
+                    }
+                    
+                    async with session.post(
+                        f"{API_BASE_URL}/api/auth",
+                        json={
+                            "token": auth_token,
+                            "user": user_data
+                        }
+                    ) as response:
+                        result = await response.json()
+                        
+                        if result.get('success'):
+                            logger.info(f"✅ Авторизация успешна для пользователя {user.id}")
+                            
+                            # Автоматически открываем WebApp с параметром успешной авторизации
+                            webapp_url = f"{API_BASE_URL}/webapp?authorized=true&user_id={user.id}"
+                            
+                            await update.message.reply_text(
+                                f"✅ Авторизация успешна!\n\n"
+                                f"🎉 Добро пожаловать, {user.first_name}!\n\n"
+                                f"Приложение откроется автоматически 👇",
+                                reply_markup=InlineKeyboardMarkup([
+                                    [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=webapp_url))]
+                                ])
+                            )
+                            return
+            except Exception as e:
+                logger.error(f"❌ Ошибка авторизации: {e}")
+    
+    # Обычное приветствие
     await update.message.reply_text(
         f"👋 Привет, {user.first_name}!\n\n"
-        f"🎯 Добро пожаловать в **Anonimka.kz** - анонимную доску объявлений Казахстана!\n\n"
-        f"📱 Используйте кнопку ниже для открытия приложения:",
+        f"🎯 **Anonimka.kz** - анонимные знакомства Казахстана!\n\n"
+        f"Используйте кнопки ниже:",
         parse_mode='Markdown',
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))]
+            [InlineKeyboardButton("🚀 Запустить приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))],
+            [InlineKeyboardButton("❓ Помощь", callback_data="help")]
         ])
     )
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /help - информация о боте"""
+    help_text = (
+        "📖 **Справка по Anonimka.kz**\n\n"
+        "🚀 **Запустить приложение** - открыть WebApp для создания анкет и общения\n\n"
+        "❓ **Помощь** - показать эту справку\n\n"
+        "💡 **Как пользоваться:**\n"
+        "1. Нажмите 'Запустить приложение'\n"
+        "2. Создайте анкету или просмотрите существующие\n"
+        "3. Начните общение в чате\n"
+        "4. Получайте уведомления о новых сообщениях здесь в боте\n\n"
+        "🎯 Все анкеты анонимны и автоматически удаляются через 24 часа!"
+    )
+    
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.message.edit_text(
+            help_text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🚀 Запустить приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))]
+            ])
+        )
+    else:
+        await update.message.reply_text(
+            help_text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🚀 Запустить приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))]
+            ])
+        )
 
 async def my_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /my_chats - показать мои чаты"""
@@ -335,9 +414,10 @@ def main():
     
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("my_chats", my_chats))
+    application.add_handler(CommandHandler("help", help_command))
     
     # Обработчики callback
+    application.add_handler(CallbackQueryHandler(help_command, pattern="^help$"))
     application.add_handler(CallbackQueryHandler(open_chat_callback, pattern="^openchat_"))
     application.add_handler(CallbackQueryHandler(show_my_chats_callback, pattern="^show_my_chats$"))
     
