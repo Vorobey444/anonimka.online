@@ -49,9 +49,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             webapp_url = f"{API_BASE_URL}/webapp?ref={referrer_token}"
             
             await update.message.reply_text(
-                f"👋 Привет, {user.first_name}!\n\n"
-                f"🎁 Вы перешли по реферальной ссылке!\n\n"
-                f"Создайте анкету и оба получите бонусы 🎉",
+                f"Ты зашёл не туда. Или туда, куда давно хотел.\n\n"
+                f"Анонимные анкеты. Прямые слова. Без фильтров.\n\n"
+                f"Попробуй написать первым — пока не написал кто-то другой.",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🚀 Создать анкету", web_app=WebAppInfo(url=webapp_url))]
                 ])
