@@ -36,13 +36,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start - приветствие и открытие WebApp"""
     user = update.effective_user
     
-    # Проверяем параметр start (для авторизации через Deep Link)
+    # Проверяем параметр start (для авторизации через Deep Link или реферальной ссылки)
     if context.args and len(context.args) > 0:
-        auth_token = context.args[0]
+        start_param = context.args[0]
+        
+        # Если это реферальная ссылка
+        if start_param.startswith('ref_'):
+            referrer_token = start_param.replace('ref_', '')
+            logger.info(f"🔗 Переход по реферальной ссылке: user={user.id}, referrer_token={referrer_token}")
+            
+            # Сохраняем реферальную информацию (будет обработана при создании анкеты в WebApp)
+            webapp_url = f"{API_BASE_URL}/webapp?ref={referrer_token}"
+            
+            await update.message.reply_text(
+                f"👋 Привет, {user.first_name}!\n\n"
+                f"🎁 Вы перешли по реферальной ссылке!\n\n"
+                f"Создайте анкету и оба получите бонусы 🎉",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🚀 Создать анкету", web_app=WebAppInfo(url=webapp_url))]
+                ])
+            )
+            return
         
         # Если это токен авторизации
-        if auth_token.startswith('auth_'):
-            logger.info(f"🔐 Авторизация пользователя {user.id} через Deep Link с токеном {auth_token}")
+        if start_param.startswith('auth_'):
+            logger.info(f"🔐 Авторизация пользователя {user.id} через Deep Link с токеном {start_param}")
             
             # Отправляем данные пользователя на сервер
             try:
@@ -57,7 +75,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     async with session.post(
                         f"{API_BASE_URL}/api/auth",
                         json={
-                            "token": auth_token,
+                            "token": start_param,
                             "user": user_data
                         }
                     ) as response:
