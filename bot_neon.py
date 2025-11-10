@@ -20,12 +20,19 @@ from telegram.ext import (
 # Загружаем переменные из .env файла
 load_dotenv()
 
-# Настройка логирования
+# Настройка логирования - только важные события
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.WARNING  # Показываем только WARNING и ERROR
 )
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # Для нашего кода INFO, для библиотек WARNING
+
+# Отключаем verbose логи от библиотек
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+logging.getLogger('telegram').setLevel(logging.WARNING)
+logging.getLogger('aiohttp').setLevel(logging.WARNING)
 
 # Константы из переменных окружения
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -43,7 +50,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Если это реферальная ссылка
         if start_param.startswith('ref_'):
             referrer_token = start_param.replace('ref_', '')
-            logger.info(f"🔗 Переход по реферальной ссылке: user={user.id}, referrer_token={referrer_token}")
+            logger.info(f"🔗 Реферал: user {user.id} -> {referrer_token[:8]}...")
             
             # Сохраняем реферальную информацию (будет обработана при создании анкеты в WebApp)
             webapp_url = f"{API_BASE_URL}/webapp?ref={referrer_token}"
@@ -60,8 +67,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Если это токен авторизации
         if start_param.startswith('auth_'):
-            logger.info(f"🔐 Авторизация пользователя {user.id} через Deep Link с токеном {start_param}")
-            
             # Отправляем данные пользователя на сервер
             try:
                 async with aiohttp.ClientSession() as session:
@@ -82,7 +87,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         result = await response.json()
                         
                         if result.get('success'):
-                            logger.info(f"✅ Авторизация успешна для пользователя {user.id}")
+                            logger.info(f"✅ Авторизация: user {user.id}")
                             
                             # Автоматически открываем WebApp с параметром успешной авторизации
                             webapp_url = f"{API_BASE_URL}/webapp?authorized=true&user_id={user.id}"
@@ -102,7 +107,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Обычное приветствие
     await update.message.reply_text(
         f"👋 Привет, {user.first_name}!\n\n"
-        f"🎯 **Anonimka.kz** - анонимные знакомства Казахстана!\n\n"
+        f"🎯 **Anonimka.kz** - анонимные знакомства!\n\n"
         f"Используйте кнопки ниже:",
         parse_mode='Markdown',
         reply_markup=InlineKeyboardMarkup([
@@ -443,7 +448,9 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
     
     # Запускаем бота
-    logger.info("🤖 Бот запущен!")
+    print("🤖 Бот запущен и работает...")
+    print("✅ Логируются только важные события")
+    print("─" * 40)
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
