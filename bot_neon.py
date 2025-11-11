@@ -8,6 +8,7 @@ import logging
 import aiohttp
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram.error import Forbidden
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -426,6 +427,28 @@ async def show_my_chats_callback(update: Update, context: ContextTypes.DEFAULT_T
             "Попробуйте позже"
         )
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Глобальный обработчик ошибок"""
+    err = context.error
+    logger.info(f"Обработка ошибки: {err}")
+
+    # Если бот был заблокирован пользователем — игнорируем (обычная ситуация)
+    try:
+        if isinstance(err, Forbidden) or 'bot was blocked' in str(err).lower() or 'forbidden' in str(err).lower():
+            logger.warning(f"⚠️ Бот заблокирован пользователем или доступ запрещён: {err}")
+            return
+    except Exception:
+        # На случай, если err не является классом Exception с ожидаемыми свойствами
+        pass
+
+    # Логируем только критические ошибки; сетевые — предупреждение
+    if "NetworkError" in str(err) or "ReadError" in str(err) or 'connecterror' in str(err).lower():
+        logger.warning("🔄 Временная сетевая ошибка, переподключение...")
+        return
+
+    # По умолчанию логируем полную трассировку для дебага
+    logger.exception(f"❌ Критическая ошибка: {err}")
+
 def main():
     """Запуск бота"""
     if not BOT_TOKEN:
@@ -446,6 +469,9 @@ def main():
     
     # Обработчик текстовых сообщений
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
+    
+    # Глобальный обработчик ошибок
+    application.add_error_handler(error_handler)
     
     # Запускаем бота
     print("🤖 Бот запущен и работает...")
