@@ -396,7 +396,10 @@ class AIChatBot:
         messages = await self.get_messages(limit=30)
         
         if not messages:
+            logger.info("📭 Нет сообщений")
             return
+        
+        logger.info(f"📬 Получено {len(messages)} сообщений, last_checked_id: {self.last_checked_message_id}")
         
         # Обновляем историю разговоров
         for msg in messages[-10:]:  # Последние 10 сообщений в контекст
@@ -426,12 +429,17 @@ class AIChatBot:
                     
                     # Отвечаем только на сообщения не старше 5 минут (300 секунд)
                     if msg_id > self.last_checked_message_id and not is_bot and time_diff <= 300:
+                        logger.info(f"✉️ Новое сообщение от {msg.get('nickname')}: time_diff={time_diff:.0f}s")
                         new_user_messages.append(msg)
+                    elif msg_id > self.last_checked_message_id:
+                        logger.info(f"⏭️ Пропускаем: id={msg_id}, is_bot={is_bot}, time_diff={time_diff:.0f}s")
                 except Exception as e:
                     logger.error(f"⚠️ Ошибка парсинга времени: {e}")
             
         if messages:
             self.last_checked_message_id = max(msg.get('id', 0) for msg in messages)
+        
+        logger.info(f"📊 Новых сообщений пользователей: {len(new_user_messages)}")
         
         # Отвечаем на 70% сообщений пользователей
         for message in new_user_messages:
