@@ -170,10 +170,17 @@ class AIChatBot:
         """Отправить сообщение от имени персонажа"""
         try:
             persona = PERSONAS[persona_id]
-            # Обрезаем если слишком длинное (учитываем префикс @)
+            
+            # Умное обрезание: по словам, а не посередине
             full_message = message_text
-            if len(full_message) > 118:  # 119 - 1 символ на префикс
-                full_message = full_message[:115] + "..."
+            MAX_LENGTH = 110  # Максимальная длина без префикса
+            
+            if len(full_message) > MAX_LENGTH:
+                # Обрезаем по последнему пробелу до лимита
+                truncated = full_message[:MAX_LENGTH].rsplit(' ', 1)[0]
+                # Убираем знаки препинания в конце
+                truncated = truncated.rstrip('.,!?:;')
+                full_message = truncated + "..."
             
             # Добавляем префикс @ для world сообщений
             full_message = "@" + full_message
@@ -215,8 +222,16 @@ class AIChatBot:
 
 Ты находишься в анонимном чате. Веди себя естественно, как реальный человек.
 
+КРИТИЧЕСКИ ВАЖНО - ЛИМИТ ДЛИНЫ:
+- Длина сообщения: от 1 до 110 символов (СТРОГО!)
+- Оптимально: 60-90 символов
+- Можешь написать коротко 1-2 слова ("Ага", "Понял", "Норм")
+- Можешь написать среднее сообщение 40-80 символов
+- Максимум 110 символов - думай, как уместить мысль
+- Сокращай слова если нужно (че, ну, щас, оч, канеш)
+- Не начинай длинные объяснения - пиши коротко и по делу
+
 ВАЖНЫЕ ПРАВИЛА:
-- Пиши средней длины (макс 100-120 символов)
 - Естественно и непринужденно, как обычный человек
 - Соответствуй своему характеру
 - Можешь не соглашаться, спорить, шутить
@@ -262,7 +277,7 @@ class AIChatBot:
             response = await client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
-                max_tokens=150,
+                max_tokens=50,  # Ограничиваем длину ответа (1-110 символов ≈ 3-50 токенов)
                 temperature=0.9,  # Высокая креативность
                 presence_penalty=0.6,  # Разнообразие
                 frequency_penalty=0.3
@@ -408,7 +423,9 @@ class AIChatBot:
         
         # Фильтруем только новые сообщения от реальных пользователей
         new_user_messages = []
-        current_time = datetime.now()
+        # Используем UTC время для корректного сравнения с БД
+        from datetime import timezone
+        current_time = datetime.now(timezone.utc)
         
         for msg in messages:
             msg_id = msg.get('id', 0)
@@ -418,14 +435,18 @@ class AIChatBot:
             created_at_str = msg.get('created_at') or msg.get('createdAt')
             if created_at_str:
                 try:
-                    # Парсим время сообщения
+                    # Парсим время сообщения (БД хранит в UTC)
                     if isinstance(created_at_str, str):
                         msg_time = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
                     else:
                         msg_time = created_at_str
                     
-                    # Разница во времени в секундах
-                    time_diff = (current_time - msg_time.replace(tzinfo=None)).total_seconds()
+                    # Если msg_time без timezone, добавляем UTC
+                    if msg_time.tzinfo is None:
+                        msg_time = msg_time.replace(tzinfo=timezone.utc)
+                    
+                    # Разница во времени в секундах (оба времени в UTC)
+                    time_diff = (current_time - msg_time).total_seconds()
                     
                     # Отвечаем только на сообщения не старше 5 минут (300 секунд)
                     if msg_id > self.last_checked_message_id and not is_bot and time_diff <= 300:
