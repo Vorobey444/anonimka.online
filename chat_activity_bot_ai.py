@@ -277,7 +277,7 @@ class AIChatBot:
             response = await client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
-                max_tokens=50,  # Ограничиваем длину ответа (1-110 символов ≈ 3-50 токенов)
+                max_tokens=70,  # Для русского языка нужно больше токенов (1-110 символов ≈ 3-70 токенов)
                 temperature=0.9,  # Высокая креативность
                 presence_penalty=0.6,  # Разнообразие
                 frequency_penalty=0.3
