@@ -170,10 +170,13 @@ class AIChatBot:
         """Отправить сообщение от имени персонажа"""
         try:
             persona = PERSONAS[persona_id]
-            # Обрезаем если слишком длинное
+            # Обрезаем если слишком длинное (учитываем префикс @)
             full_message = message_text
-            if len(full_message) > 119:
-                full_message = full_message[:116] + "..."
+            if len(full_message) > 118:  # 119 - 1 символ на префикс
+                full_message = full_message[:115] + "..."
+            
+            # Добавляем префикс @ для world сообщений
+            full_message = "@" + full_message
             
             async with aiohttp.ClientSession() as session:
                 payload = {
