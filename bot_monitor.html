@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 Монитор бота активности</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .messages-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .messages-panel h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .message {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .message.bot {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+        }
+        
+        .message.user {
+            background: #fff7ed;
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .message-icon {
+            font-size: 1.5em;
+            flex-shrink: 0;
+        }
+        
+        .message-content {
+            flex: 1;
+        }
+        
+        .message-text {
+            font-size: 1em;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .message-time {
+            font-size: 0.8em;
+            color: #999;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1em;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        }
+        
+        .auto-refresh {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .updating {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Монитор бота активности</h1>
+            <p>Отслеживание сообщений в реальном времени</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Всего сообщений</h3>
+                <div class="value" id="totalMessages">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>От ботов</h3>
+                <div class="value" id="botMessages">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>От пользователей</h3>
+                <div class="value" id="userMessages">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>За последний час</h3>
+                <div class="value" id="recentMessages">0</div>
+            </div>
+        </div>
+        
+        <div class="messages-panel">
+            <h2>Последние сообщения</h2>
+            <div id="messagesContainer">
+                <div class="loading">Загрузка сообщений...</div>
+            </div>
+        </div>
+        
+        <button class="refresh-btn" onclick="loadMessages()">🔄 Обновить</button>
+        
+        <div class="auto-refresh">
+            Автообновление каждые 10 секунд
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = 'https://anonimka.kz/api/world-chat';
+        let lastUpdateTime = Date.now();
+        
+        async function loadMessages() {
+            try {
+                const response = await fetch(`${API_URL}?limit=50`);
+                const data = await response.json();
+                
+                if (data.success && data.messages) {
+                    updateStats(data.messages);
+                    displayMessages(data.messages);
+                    lastUpdateTime = Date.now();
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки:', error);
+                document.getElementById('messagesContainer').innerHTML = 
+                    '<div class="loading">❌ Ошибка загрузки сообщений</div>';
+            }
+        }
+        
+        function updateStats(messages) {
+            const total = messages.length;
+            const botCount = messages.filter(m => m.isBot).length;
+            const userCount = total - botCount;
+            
+            // Сообщения за последний час
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            const recent = messages.filter(m => 
+                new Date(m.createdAt) > oneHourAgo
+            ).length;
+            
+            document.getElementById('totalMessages').textContent = total;
+            document.getElementById('botMessages').textContent = botCount;
+            document.getElementById('userMessages').textContent = userCount;
+            document.getElementById('recentMessages').textContent = recent;
+        }
+        
+        function displayMessages(messages) {
+            const container = document.getElementById('messagesContainer');
+            container.innerHTML = '';
+            
+            if (messages.length === 0) {
+                container.innerHTML = '<div class="loading">Нет сообщений</div>';
+                return;
+            }
+            
+            // Показываем последние 30 сообщений
+            messages.slice(-30).reverse().forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${msg.isBot ? 'bot' : 'user'}`;
+                
+                const icon = msg.isBot ? '🤖' : '👤';
+                const nickname = msg.nickname || 'Аноним';
+                const time = new Date(msg.createdAt).toLocaleTimeString('ru-RU');
+                
+                messageDiv.innerHTML = `
+                    <div class="message-icon">${icon}</div>
+                    <div class="message-content">
+                        <div class="message-text"><strong>${escapeHtml(nickname)}:</strong> ${escapeHtml(msg.message)}</div>
+                        <div class="message-time">${time}</div>
+                    </div>
+                `;
+                
+                container.appendChild(messageDiv);
+            });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Автообновление каждые 10 секунд
+        setInterval(loadMessages, 10000);
+        
+        // Первоначальная загрузка
+        loadMessages();
+    </script>
+</body>
+</html>
