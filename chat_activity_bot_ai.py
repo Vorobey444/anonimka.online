@@ -454,6 +454,10 @@ class AIChatBot:
         logger.info(f"🧠 Модель: GPT-3.5-Turbo")
         logger.info("─" * 60)
         
+        # Генерируем первый интервал для диалога
+        next_conversation_interval = random.uniform(120, 300)
+        logger.info(f"⏰ Следующий диалог через {next_conversation_interval/60:.1f} минут")
+        
         while True:
             try:
                 current_time = asyncio.get_event_loop().time()
@@ -463,9 +467,12 @@ class AIChatBot:
                 
                 # Каждые 2-5 минут запускаем AI-диалог между ботами
                 time_since_activity = current_time - self.last_activity_time
-                if time_since_activity > random.uniform(120, 300):  # 2-5 минут
+                if time_since_activity > next_conversation_interval:
                     await self.start_ai_conversation()
                     self.last_activity_time = current_time
+                    # Генерируем новый интервал
+                    next_conversation_interval = random.uniform(120, 300)
+                    logger.info(f"⏰ Следующий диалог через {next_conversation_interval/60:.1f} минут")
                 
                 # Проверяем каждые 20 секунд
                 await asyncio.sleep(20)
