@@ -44,6 +44,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start - приветствие и открытие WebApp"""
     user = update.effective_user
     
+    logger.info(f"👤 /start от user {user.id} (@{user.username or 'no_username'})")
+    
     # Проверяем параметр start (для авторизации через Deep Link или реферальной ссылки)
     if context.args and len(context.args) > 0:
         start_param = context.args[0]
@@ -108,12 +110,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Обычное приветствие
     await update.message.reply_text(
         f"👋 Привет, {user.first_name}!\n\n"
-        f"🎯 **Anonimka.kz** - анонимные знакомства!\n\n"
-        f"Используйте кнопки ниже:",
+        f"🎭 **Анонимные знакомства без фильтров**\n\n"
+        f"✨ Создай анкету за 30 секунд\n"
+        f"💬 Общайся в Мир чате с людьми со всех городов\n"
+        f"📍 Находи людей рядом в Город чате\n"
+        f"❤️ Получай отклики и начинай диалог\n\n"
+        f"🔥 Прямые слова. Без масок. Попробуй!\n\n"
+        f"Жми кнопку ниже и начни знакомиться прямо сейчас 👇",
         parse_mode='Markdown',
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚀 Запустить приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))],
-            [InlineKeyboardButton("❓ Помощь", callback_data="help")]
+            [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))]
         ])
     )
 
@@ -229,6 +235,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if len(message_text.strip()) < 3:
         return
     
+    logger.info(f"📝 Сообщение от user {user_id}: {message_text[:30]}...")
+    
     # Проверяем есть ли активный чат в контексте
     active_chat_id = context.user_data.get('active_chat_id') if context.user_data else None
     
@@ -251,6 +259,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     result = await response.json()
                     
                     if result.get('error'):
+                        logger.warning(f"❌ Ошибка отправки: {result.get('error')}")
                         await update.message.reply_text(
                             "❌ Ошибка отправки сообщения\n\n"
                             "Возможно чат был закрыт или заблокирован."
@@ -259,6 +268,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                         if context.user_data:
                             context.user_data.pop('active_chat_id', None)
                     else:
+                        logger.info(f"✅ Сообщение отправлено в чат {active_chat_id}")
                         await update.message.reply_text("✅ Сообщение отправлено!")
         
         except Exception as e:
@@ -283,6 +293,8 @@ async def open_chat_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     chat_id = query.data.replace("openchat_", "")
     user_id = query.from_user.id
+    
+    logger.info(f"💬 Открытие чата {chat_id} от user {user_id}")
     
     try:
         # Получаем информацию о чате
@@ -365,6 +377,8 @@ async def show_my_chats_callback(update: Update, context: ContextTypes.DEFAULT_T
     
     user_id = query.from_user.id
     
+    logger.info(f"📋 Запрос списка чатов от user {user_id}")
+    
     try:
         # Получаем чаты пользователя
         async with aiohttp.ClientSession() as session:
@@ -390,6 +404,7 @@ async def show_my_chats_callback(update: Update, context: ContextTypes.DEFAULT_T
                 chats = result.get('data', [])
                 
                 if not chats:
+                    logger.info(f"📭 У user {user_id} нет активных чатов")
                     await query.edit_message_text(
                         "📭 У вас пока нет активных чатов\n\n"
                         "Откройте приложение для поиска объявлений:",
@@ -398,6 +413,8 @@ async def show_my_chats_callback(update: Update, context: ContextTypes.DEFAULT_T
                         ])
                     )
                     return
+                
+                logger.info(f"✅ Загружено {len(chats)} чатов для user {user_id}")
                 
                 # Формируем кнопки с чатами
                 keyboard = []
