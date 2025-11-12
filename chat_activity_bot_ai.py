@@ -172,8 +172,8 @@ class AIChatBot:
             persona = PERSONAS[persona_id]
             # Обрезаем если слишком длинное
             full_message = message_text
-            if len(full_message) > 49:
-                full_message = full_message[:46] + "..."
+            if len(full_message) > 119:
+                full_message = full_message[:116] + "..."
             
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -209,7 +209,7 @@ class AIChatBot:
 Ты находишься в анонимном чате. Веди себя естественно, как реальный человек.
 
 ВАЖНЫЕ ПРАВИЛА:
-- Пиши КОРОТКО (макс 40-50 символов)
+- Пиши средней длины (макс 100-120 символов)
 - Естественно и непринужденно
 - Соответствуй своему характеру
 - Можешь не соглашаться, спорить, шутить
@@ -249,7 +249,7 @@ class AIChatBot:
             response = await client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
-                max_tokens=60,
+                max_tokens=150,
                 temperature=0.9,  # Высокая креативность
                 presence_penalty=0.6,  # Разнообразие
                 frequency_penalty=0.3
