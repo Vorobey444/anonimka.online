@@ -176,15 +176,16 @@ class AIChatBot:
                 full_message = full_message[:116] + "..."
             
             async with aiohttp.ClientSession() as session:
+                payload = {
+                    "user_token": persona_id,
+                    "nickname": persona['name'],
+                    "message": full_message,
+                    "type": "world",
+                    "is_bot": True
+                }
                 async with session.post(
                     f"{API_BASE_URL}/api/world-chat",
-                    json={
-                        "user_token": persona_id,
-                        "nickname": persona['name'],
-                        "message": full_message,
-                        "type": "world",
-                        "is_bot": True
-                    }
+                    json=payload
                 ) as response:
                     if response.status == 200:
                         logger.info(f"✅ [{persona['name']}] {message_text}")
@@ -192,7 +193,10 @@ class AIChatBot:
                         self.bot_memories[persona_id].append(message_text)
                         return True
                     else:
+                        error_text = await response.text()
                         logger.error(f"❌ Ошибка отправки: {response.status}")
+                        logger.error(f"   Payload: {payload}")
+                        logger.error(f"   Response: {error_text[:200]}")
                     return False
         except Exception as e:
             logger.error(f"❌ Ошибка отправки: {e}")
