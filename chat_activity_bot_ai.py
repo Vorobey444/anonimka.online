@@ -338,8 +338,8 @@ class AIChatBot:
         """Начать AI-диалог между ботами"""
         logger.info(f"🤖 Запускаем AI-диалог между ботами")
         
-        # Выбираем 2-3 персонажа
-        num_bots = random.randint(2, 3)
+        # Выбираем 1-2 персонажа (уменьшено с 2-3)
+        num_bots = random.randint(1, 2)
         participants = random.sample(list(PERSONAS.keys()), num_bots)
         
         # Первый бот начинает разговор
@@ -379,9 +379,9 @@ class AIChatBot:
                 ])
         
         await self.send_message(starter_persona, starter_msg)
-        await asyncio.sleep(random.uniform(3, 6))
+        await asyncio.sleep(random.uniform(5, 10))
         
-        # Остальные боты отвечают
+        # Остальные боты отвечают (только если их больше 1)
         for i in range(1, len(participants)):
             persona_id = participants[i]
             
@@ -392,17 +392,17 @@ class AIChatBot:
             )
             
             await self.send_message(persona_id, response)
-            await asyncio.sleep(random.uniform(4, 8))
+            await asyncio.sleep(random.uniform(8, 15))
         
-        # Иногда добавляем ещё один ответ
-        if random.random() < 0.4 and len(participants) > 1:
-            extra_persona = random.choice(participants[1:])
-            extra_response = await self.generate_ai_response(
-                extra_persona,
-                list(self.conversation_history)
-            )
-            await asyncio.sleep(random.uniform(3, 5))
-            await self.send_message(extra_persona, extra_response)
+        # Убираем дополнительный ответ - слишком много общения
+        # if random.random() < 0.4 and len(participants) > 1:
+        #     extra_persona = random.choice(participants[1:])
+        #     extra_response = await self.generate_ai_response(
+        #         extra_persona,
+        #         list(self.conversation_history)
+        #     )
+        #     await asyncio.sleep(random.uniform(3, 5))
+        #     await self.send_message(extra_persona, extra_response)
         
         logger.info(f"✅ AI-диалог завершён")
     
@@ -462,11 +462,11 @@ class AIChatBot:
         
         logger.info(f"📊 Новых сообщений пользователей: {len(new_user_messages)}")
         
-        # Отвечаем на 70% сообщений пользователей
+        # Отвечаем на 50% сообщений пользователей (уменьшено с 70%)
         for message in new_user_messages:
-            if random.random() < 0.7:  # 70% шанс ответить
+            if random.random() < 0.5:  # 50% шанс ответить
                 await self.respond_to_user(message)
-                await asyncio.sleep(random.uniform(2, 5))
+                await asyncio.sleep(random.uniform(3, 7))
     
     async def run(self):
         """Основной цикл работы AI бота"""
@@ -475,8 +475,8 @@ class AIChatBot:
         logger.info(f"🧠 Модель: GPT-3.5-Turbo")
         logger.info("─" * 60)
         
-        # Генерируем первый интервал для диалога
-        next_conversation_interval = random.uniform(120, 300)
+        # Генерируем первый интервал для диалога (10-15 минут)
+        next_conversation_interval = random.uniform(600, 900)
         logger.info(f"⏰ Следующий диалог через {next_conversation_interval/60:.1f} минут")
         
         while True:
@@ -486,13 +486,13 @@ class AIChatBot:
                 # Обрабатываем сообщения пользователей
                 await self.process_new_messages()
                 
-                # Каждые 2-5 минут запускаем AI-диалог между ботами
+                # Каждые 10-15 минут запускаем AI-диалог между ботами
                 time_since_activity = current_time - self.last_activity_time
                 if time_since_activity > next_conversation_interval:
                     await self.start_ai_conversation()
                     self.last_activity_time = current_time
-                    # Генерируем новый интервал
-                    next_conversation_interval = random.uniform(120, 300)
+                    # Генерируем новый интервал (10-15 минут)
+                    next_conversation_interval = random.uniform(600, 900)
                     logger.info(f"⏰ Следующий диалог через {next_conversation_interval/60:.1f} минут")
                 
                 # Проверяем каждые 20 секунд
