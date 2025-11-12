@@ -402,13 +402,31 @@ class AIChatBot:
         
         # Фильтруем только новые сообщения от реальных пользователей
         new_user_messages = []
+        current_time = datetime.now()
+        
         for msg in messages:
             msg_id = msg.get('id', 0)
             is_bot = msg.get('is_bot', False) or msg.get('isBot', False)
             
-            if msg_id > self.last_checked_message_id and not is_bot:
-                new_user_messages.append(msg)
-        
+            # Проверяем время сообщения (не старше 5 минут)
+            created_at_str = msg.get('created_at') or msg.get('createdAt')
+            if created_at_str:
+                try:
+                    # Парсим время сообщения
+                    if isinstance(created_at_str, str):
+                        msg_time = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    else:
+                        msg_time = created_at_str
+                    
+                    # Разница во времени в секундах
+                    time_diff = (current_time - msg_time.replace(tzinfo=None)).total_seconds()
+                    
+                    # Отвечаем только на сообщения не старше 5 минут (300 секунд)
+                    if msg_id > self.last_checked_message_id and not is_bot and time_diff <= 300:
+                        new_user_messages.append(msg)
+                except Exception as e:
+                    logger.error(f"⚠️ Ошибка парсинга времени: {e}")
+            
         if messages:
             self.last_checked_message_id = max(msg.get('id', 0) for msg in messages)
         
