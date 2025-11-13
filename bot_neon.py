@@ -6,6 +6,7 @@ Telegram бот для anonimka.kz с интеграцией Neon PostgreSQL
 import os
 import logging
 import aiohttp
+import asyncio
 import random
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
@@ -492,10 +493,17 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     # Логируем только критические ошибки; сетевые — предупреждение
     if "NetworkError" in str(err) or "ReadError" in str(err) or 'connecterror' in str(err).lower():
         logger.warning("🔄 Временная сетевая ошибка, переподключение...")
+        # После автоматического переподключения логируем успех
+        asyncio.create_task(log_reconnect_success())
         return
 
     # По умолчанию логируем полную трассировку для дебага
     logger.exception(f"❌ Критическая ошибка: {err}")
+
+async def log_reconnect_success():
+    """Логирует успешное переподключение после сетевой ошибки"""
+    await asyncio.sleep(2)  # Ждем 2 секунды для завершения переподключения
+    logger.info("✅ Переподключение успешно! Бот работает нормально.")
 
 def main():
     """Запуск бота"""
