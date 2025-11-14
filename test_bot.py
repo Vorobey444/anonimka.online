@@ -43,7 +43,7 @@ async def test_get_messages():
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                f"{API_BASE_URL}/api/world-chat?limit=10"
+                f"{API_BASE_URL}/api/world-chat?type=world&limit=10"
             ) as response:
                 if response.status == 200:
                     data = await response.json()

@@ -281,7 +281,7 @@ class AdvancedChatBot:
     
     async def respond_to_message(self, message):
         """Ответить на сообщение пользователя"""
-        user_id = message.get('userId')
+        user_id = message.get('userToken') or message.get('user_token') or 'unknown'
         message_text = message.get('message', '')
         
         # Увеличиваем счётчик взаимодействий
@@ -290,8 +290,9 @@ class AdvancedChatBot:
         # Анализируем сообщение
         pattern, config = self.analyze_message(message_text)
         
-        if not pattern and self.user_interactions[user_id] < 2:
-            # Не отвечаем на первое сообщение если нет чёткого паттерна
+        # ВСЕГДА отвечаем если есть паттерн
+        if not pattern:
+            logger.info(f"⏭️ Пропускаем сообщение без паттерна: {message_text[:30]}")
             return
         
         # Имитация набора текста

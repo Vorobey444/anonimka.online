@@ -6,7 +6,7 @@ echo   🧪 Тестирование бота активности
 echo =======================================
 echo.
 
-python --version >nul 2>&1
+py --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo ❌ Python не найден!
     pause
@@ -20,13 +20,13 @@ if not exist .env (
 )
 
 echo 📦 Установка зависимостей...
-pip install -q aiohttp python-dotenv
+py -m pip install -q aiohttp python-dotenv
 
 echo.
 echo 🚀 Запуск теста...
 echo.
 
-python test_bot.py
+py test_bot.py
 
 echo.
 pause

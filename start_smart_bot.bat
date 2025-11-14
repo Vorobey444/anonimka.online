@@ -9,7 +9,7 @@ echo Эта версия использует контекст и ведёт д�
 echo.
 
 REM Проверка Python
-python --version >nul 2>&1
+py --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo ❌ Python не найден!
     pause
@@ -31,7 +31,7 @@ echo.
 
 REM Установка зависимостей
 echo 📦 Установка зависимостей...
-pip install -q aiohttp python-dotenv
+py -m pip install -q aiohttp python-dotenv
 
 echo.
 echo 🚀 Запуск умного бота...
@@ -47,6 +47,6 @@ echo.
 echo ──────────────────────────────────────────────
 echo.
 
-python chat_activity_bot_advanced.py
+py chat_activity_bot_advanced.py
 
 pause

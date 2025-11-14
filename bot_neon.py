@@ -505,6 +505,119 @@ async def log_reconnect_success():
     await asyncio.sleep(2)  # Ждем 2 секунды для завершения переподключения
     logger.info("✅ Переподключение успешно! Бот работает нормально.")
 
+# ============= МОДЕРАЦИЯ =============
+
+ADMIN_TG_ID = 884253640
+
+# Обработчик кнопки "Забанить"
+async def moderate_ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка кнопки 'Забанить' в жалобе"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = update.effective_user.id
+    if user_id != ADMIN_TG_ID:
+        await query.edit_message_text('❌ Доступ запрещен')
+        return
+    
+    data = query.data
+    parts = data.split('_')
+    report_id = int(parts[1])
+    banned_user_id = int(parts[2])
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.patch(
+                f'{API_BASE_URL}/api/reports',
+                json={
+                    'reportId': report_id,
+                    'action': 'approve',
+                    'adminId': ADMIN_TG_ID,
+                    'adminNotes': 'Забанен через бота'
+                }
+            ) as response:
+                if response.status == 200:
+                    new_text = query.message.text + f'\n\n✅ <b>ЗАБАНЕН</b> администратором'
+                    await query.edit_message_text(new_text, parse_mode='HTML')
+                    logger.info(f'✅ Пользователь {banned_user_id} забанен по жалобе #{report_id}')
+                else:
+                    await query.edit_message_text('❌ Ошибка при бане')
+    except Exception as e:
+        logger.error(f'Ошибка бана: {e}')
+        await query.edit_message_text('❌ Ошибка при бане')
+
+# Обработчик кнопки "Отклонить"
+async def moderate_reject_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка кнопки 'Отклонить' в жалобе"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = update.effective_user.id
+    if user_id != ADMIN_TG_ID:
+        await query.edit_message_text('❌ Доступ запрещен')
+        return
+    
+    data = query.data
+    report_id = int(data.split('_')[1])
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.patch(
+                f'{API_BASE_URL}/api/reports',
+                json={
+                    'reportId': report_id,
+                    'action': 'reject',
+                    'adminId': ADMIN_TG_ID,
+                    'adminNotes': 'Жалоба отклонена'
+                }
+            ) as response:
+                if response.status == 200:
+                    new_text = query.message.text + f'\n\n❌ <b>ОТКЛОНЕНА</b> администратором'
+                    await query.edit_message_text(new_text, parse_mode='HTML')
+                    logger.info(f'❌ Жалоба #{report_id} отклонена')
+                else:
+                    await query.edit_message_text('❌ Ошибка при отклонении')
+    except Exception as e:
+        logger.error(f'Ошибка отклонения: {e}')
+        await query.edit_message_text('❌ Ошибка')
+
+# Команда /reports - список жалоб
+async def reports_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать список активных жалоб"""
+    user_id = update.effective_user.id
+    
+    if user_id != ADMIN_TG_ID:
+        await update.message.reply_text('❌ Доступ запрещен')
+        return
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f'{API_BASE_URL}/api/reports?userId={user_id}&status=pending'
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    reports = data.get('reports', [])
+                    
+                    if not reports:
+                        await update.message.reply_text('📭 Активных жалоб нет')
+                        return
+                    
+                    text = f'📋 <b>Активные жалобы ({len(reports)}):</b>\n\n'
+                    for r in reports[:10]:
+                        text += (
+                            f'🆔 #{r["id"]} | {r["reason"]}\n'
+                            f'От: {r["reporter_nickname"]} → На: {r["reported_nickname"]}\n'
+                            f'Дата: {r["created_at"][:10]}\n\n'
+                        )
+                    
+                    await update.message.reply_text(text, parse_mode='HTML')
+                else:
+                    await update.message.reply_text('❌ Ошибка загрузки жалоб')
+    except Exception as e:
+        logger.error(f'Ошибка получения жалоб: {e}')
+        await update.message.reply_text('❌ Ошибка')
+
 def main():
     """Запуск бота"""
     if not BOT_TOKEN:
@@ -522,6 +635,11 @@ def main():
     application.add_handler(CallbackQueryHandler(help_command, pattern="^help$"))
     application.add_handler(CallbackQueryHandler(open_chat_callback, pattern="^openchat_"))
     application.add_handler(CallbackQueryHandler(show_my_chats_callback, pattern="^show_my_chats$"))
+    
+    # Обработчики модерации (только для админа)
+    application.add_handler(CallbackQueryHandler(moderate_ban_user, pattern="^ban_"))
+    application.add_handler(CallbackQueryHandler(moderate_reject_report, pattern="^reject_"))
+    application.add_handler(CommandHandler("reports", reports_command))
     
     # Обработчик текстовых сообщений
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))

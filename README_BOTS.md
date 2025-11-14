@@ -282,7 +282,7 @@ MIT License - используйте свободно!
 ## 📞 Контакты
 
 - 🌐 Website: https://anonimka.kz
-- 📧 Email: support@anonimka.kz
+- 📧 Email: aleksey@vorobey444.ru
 - 💬 Telegram: @anonimka_kz
 
 ---

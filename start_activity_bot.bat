@@ -7,7 +7,7 @@ echo ========================================
 echo.
 
 REM Проверка наличия Python
-python --version >nul 2>&1
+py --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo ❌ Python не найден!
     echo Установите Python с https://python.org
@@ -33,7 +33,7 @@ echo.
 
 REM Установка зависимостей если нужно
 echo 📦 Проверка зависимостей...
-pip install -q -r requirements.txt
+py -m pip install -q -r requirements.txt
 
 echo.
 echo 🚀 Запуск бота активности...
@@ -43,6 +43,6 @@ echo ─────────────────────────
 echo.
 
 REM Запуск бота
-python chat_activity_bot.py
+py chat_activity_bot.py
 
 pause
