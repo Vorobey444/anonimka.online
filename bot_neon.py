@@ -56,14 +56,32 @@ async def setup_menu_button(application: Application):
         )
         logger.info("✅ Menu Button настроен успешно")
         
-        # Устанавливаем короткое описание (серый текст вместо "Бот")
-        await application.bot.set_my_short_description(
-            short_description="325,422 пользователей"
-        )
-        logger.info("✅ Short Description установлен")
+        # Устанавливаем начальное короткое описание
+        await update_short_description(application)
         
     except Exception as e:
         logger.error(f"❌ Ошибка настройки Menu Button: {e}")
+
+async def update_short_description(application: Application):
+    """Обновляет короткое описание бота (меняется каждый час)"""
+    descriptions = [
+        "Анонимные знакомства без фильтров. Найди кого-то рядом 🔥",
+        "Анонимка для тех, кто не боится быть собой",
+        "Знакомства без притворства. Прямо и анонимно",
+        "Встречи без масок. Анонимно и честно",
+        "Настоящие люди, настоящие желания. Анонимно"
+    ]
+    
+    # Выбираем описание на основе текущего часа
+    from datetime import datetime
+    hour = datetime.now().hour
+    description = descriptions[hour % len(descriptions)]
+    
+    try:
+        await application.bot.set_my_short_description(short_description=description)
+        logger.info(f"✅ Short Description обновлен: {description[:50]}...")
+    except Exception as e:
+        logger.error(f"❌ Ошибка обновления Short Description: {e}")
 
 # Базовые команды
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -730,6 +748,16 @@ def main():
     
     # Создаём приложение
     application = Application.builder().token(BOT_TOKEN).build()
+    
+    # Настраиваем периодическое обновление описания (каждый час)
+    job_queue = application.job_queue
+    if job_queue:
+        job_queue.run_repeating(
+            lambda context: update_short_description(context.application),
+            interval=3600,  # 3600 секунд = 1 час
+            first=3600  # Первый запуск через час после старта
+        )
+        logger.info("✅ Запланировано обновление описания каждый час")
     
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
