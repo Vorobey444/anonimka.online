@@ -41,6 +41,23 @@ logging.getLogger('aiohttp').setLevel(logging.WARNING)
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 API_BASE_URL = os.getenv('VERCEL_API_URL', 'https://anonimka.kz')
 
+# Настройка Menu Button при запуске бота
+async def setup_menu_button(application: Application):
+    """Настраивает Menu Button для быстрого доступа к приложению и важным ссылкам"""
+    try:
+        from telegram import MenuButtonWebApp
+        
+        # Устанавливаем Menu Button с ссылкой на WebApp
+        await application.bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="🚀 Открыть Anonimka",
+                web_app=WebAppInfo(url=f"{API_BASE_URL}")
+            )
+        )
+        logger.info("✅ Menu Button настроен успешно")
+    except Exception as e:
+        logger.error(f"❌ Ошибка настройки Menu Button: {e}")
+
 # Базовые команды
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start - приветствие и открытие WebApp"""
@@ -155,6 +172,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
     )
 
+async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /menu - главное меню с полезными ссылками"""
+    menu_text = (
+        "📱 **Главное меню Anonimka**\n\n"
+        "Выберите действие из меню ниже:"
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}"))],
+        [InlineKeyboardButton("❓ Помощь", callback_data="help")],
+        [
+            InlineKeyboardButton("📋 Правила", url=f"{API_BASE_URL}/TERMS_OF_SERVICE.md"),
+            InlineKeyboardButton("🔒 Политика", url=f"{API_BASE_URL}/PRIVACY_POLICY.md")
+        ],
+        [InlineKeyboardButton("💬 Тех.поддержка", url="https://t.me/Vorobey_444")]
+    ]
+    
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.message.edit_text(
+            menu_text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        await update.message.reply_text(
+            menu_text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /help - информация о боте"""
     help_text = (
@@ -166,25 +214,30 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "2. Создайте анкету или просмотрите существующие\n"
         "3. Начните общение в чате\n"
         "4. Получайте уведомления о новых сообщениях здесь в боте\n\n"
-        "🎯 Все анкеты анонимны и автоматически удаляются через 7 дней!"
+        "🎯 Все анкеты анонимны и автоматически удаляются через 7 дней!\n\n"
+        "📋 **Полезные ссылки:**\n"
+        "• [Правила использования]({API_BASE_URL}/TERMS_OF_SERVICE.md)\n"
+        "• [Политика конфиденциальности]({API_BASE_URL}/PRIVACY_POLICY.md)\n"
+        "• Тех.поддержка: @Vorobey_444"
     )
+    
+    keyboard = [
+        [InlineKeyboardButton("🚀 Запустить приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))],
+        [InlineKeyboardButton("📱 Главное меню", callback_data="main_menu")]
+    ]
     
     if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.message.edit_text(
             help_text,
             parse_mode='Markdown',
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🚀 Запустить приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))]
-            ])
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
     else:
         await update.message.reply_text(
             help_text,
             parse_mode='Markdown',
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🚀 Запустить приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))]
-            ])
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
 async def my_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -634,11 +687,19 @@ def main():
     # Создаём приложение
     application = Application.builder().token(BOT_TOKEN).build()
     
+    # Настраиваем Menu Button при запуске
+    application.job_queue.run_once(
+        lambda context: setup_menu_button(application),
+        when=0.1
+    )
+    
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("menu", menu_command))
     application.add_handler(CommandHandler("help", help_command))
     
     # Обработчики callback
+    application.add_handler(CallbackQueryHandler(menu_command, pattern="^main_menu$"))
     application.add_handler(CallbackQueryHandler(help_command, pattern="^help$"))
     application.add_handler(CallbackQueryHandler(open_chat_callback, pattern="^openchat_"))
     application.add_handler(CallbackQueryHandler(show_my_chats_callback, pattern="^show_my_chats$"))
@@ -656,6 +717,7 @@ def main():
     
     # Запускаем бота
     print("🤖 Бот запущен и работает...")
+    print("✅ Menu Button настроен")
     print("✅ Логируются только важные события")
     print("─" * 40)
     application.run_polling(allowed_updates=Update.ALL_TYPES)
