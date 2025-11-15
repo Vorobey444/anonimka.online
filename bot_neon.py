@@ -40,6 +40,12 @@ logging.getLogger('aiohttp').setLevel(logging.WARNING)
 # Константы из переменных окружения
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 API_BASE_URL = os.getenv('VERCEL_API_URL', 'https://anonimka.kz')
+ADMIN_TG_ID = int(os.getenv('ADMIN_TG_ID', '884253640'))
+CHANNEL_USERNAME = '@anonimka_kz'
+
+# Хранилище участников розыгрыша
+giveaway_participants = set()  # Множество telegram_id участников
+giveaway_active = False  # Статус розыгрыша
 
 # Настройка Menu Button при запуске бота
 async def setup_menu_button(application: Application):
@@ -751,6 +757,281 @@ async def reports_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f'Ошибка получения жалоб: {e}')
         await update.message.reply_text('❌ Ошибка')
 
+# ============================================
+# КОМАНДЫ ДЛЯ РОЗЫГРЫША TELEGRAM STARS
+# ============================================
+
+async def start_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Начать новый розыгрыш Stars (только для админа)"""
+    user_id = update.effective_user.id
+    
+    if user_id != ADMIN_TG_ID:
+        await update.message.reply_text('❌ Доступ запрещен')
+        return
+    
+    global giveaway_active, giveaway_participants
+    
+    if giveaway_active:
+        await update.message.reply_text(
+            f'⚠️ Розыгрыш уже активен!\n'
+            f'Участников: {len(giveaway_participants)}\n\n'
+            f'Используйте /end_giveaway чтобы завершить'
+        )
+        return
+    
+    # Очищаем список и активируем розыгрыш
+    giveaway_participants.clear()
+    giveaway_active = True
+    
+    await update.message.reply_text(
+        '✅ Розыгрыш ЗАПУЩЕН!\n\n'
+        '📝 Теперь опубликуйте анонс в канале @anonimka_kz:\n\n'
+        '━━━━━━━━━━━━━━━━\n'
+        '🎁 <b>РОЗЫГРЫШ 500 TELEGRAM STARS!</b>\n\n'
+        '🎯 <b>Условия:</b>\n'
+        '1️⃣ Подписаться на канал @anonimka_kz\n'
+        '2️⃣ Создать анонимный профиль в боте @anonimka_kz_bot\n'
+        '3️⃣ Написать боту команду /participate\n\n'
+        '⏰ Розыгрыш через 48 часов!\n'
+        '🎲 Победитель - случайный участник\n\n'
+        '💡 Создай профиль → Найди кого-то рядом 🔥\n'
+        '━━━━━━━━━━━━━━━━',
+        parse_mode='HTML'
+    )
+
+async def participate_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Участие в розыгрыше"""
+    global giveaway_active, giveaway_participants
+    
+    if not giveaway_active:
+        await update.message.reply_text(
+            '❌ Сейчас нет активного розыгрыша\n\n'
+            'Следите за новостями в @anonimka_kz'
+        )
+        return
+    
+    user = update.effective_user
+    user_id = user.id
+    
+    # Проверяем, уже участвует ли
+    if user_id in giveaway_participants:
+        await update.message.reply_text(
+            '✅ Вы уже участвуете в розыгрыше!\n\n'
+            f'Всего участников: {len(giveaway_participants)}'
+        )
+        return
+    
+    # Проверяем подписку на канал
+    try:
+        member = await context.bot.get_chat_member(CHANNEL_USERNAME, user_id)
+        if member.status not in ['member', 'administrator', 'creator']:
+            await update.message.reply_text(
+                '❌ Сначала подпишитесь на канал @anonimka_kz\n\n'
+                'После подписки попробуйте снова: /participate'
+            )
+            return
+    except Exception as e:
+        logger.warning(f'Не удалось проверить подписку для {user_id}: {e}')
+    
+    # Проверяем наличие профиля через API
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'{API_BASE_URL}/api/user?telegram_id={user_id}') as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if not data.get('user'):
+                        await update.message.reply_text(
+                            '❌ Сначала создайте анонимный профиль!\n\n'
+                            'Нажмите кнопку ниже чтобы начать 👇',
+                            reply_markup=InlineKeyboardMarkup([[
+                                InlineKeyboardButton("🚀 Создать профиль", web_app=WebAppInfo(url=API_BASE_URL))
+                            ]])
+                        )
+                        return
+    except Exception as e:
+        logger.error(f'Ошибка проверки профиля: {e}')
+    
+    # Добавляем участника
+    giveaway_participants.add(user_id)
+    
+    await update.message.reply_text(
+        f'🎉 Отлично! Вы участвуете в розыгрыше!\n\n'
+        f'👥 Всего участников: {len(giveaway_participants)}\n\n'
+        f'🍀 Желаем удачи!\n'
+        f'Следите за результатами в @anonimka_kz'
+    )
+    
+    logger.info(f'✅ Новый участник розыгрыша: {user_id} (@{user.username or "no_username"})')
+
+async def giveaway_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Статистика текущего розыгрыша (только для админа)"""
+    user_id = update.effective_user.id
+    
+    if user_id != ADMIN_TG_ID:
+        await update.message.reply_text('❌ Доступ запрещен')
+        return
+    
+    global giveaway_active, giveaway_participants
+    
+    status = "🟢 АКТИВЕН" if giveaway_active else "⚫️ НЕ АКТИВЕН"
+    
+    await update.message.reply_text(
+        f'📊 <b>СТАТИСТИКА РОЗЫГРЫША</b>\n\n'
+        f'Статус: {status}\n'
+        f'👥 Участников: {len(giveaway_participants)}\n\n'
+        f'Команды:\n'
+        f'/start_giveaway - запустить новый\n'
+        f'/pick_winner - выбрать победителя\n'
+        f'/end_giveaway - завершить без победителя',
+        parse_mode='HTML'
+    )
+
+async def pick_winner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Выбрать случайного победителя (только для админа)"""
+    user_id = update.effective_user.id
+    
+    if user_id != ADMIN_TG_ID:
+        await update.message.reply_text('❌ Доступ запрещен')
+        return
+    
+    global giveaway_active, giveaway_participants
+    
+    if not giveaway_active:
+        await update.message.reply_text('❌ Нет активного розыгрыша')
+        return
+    
+    if len(giveaway_participants) == 0:
+        await update.message.reply_text('❌ Нет участников!')
+        return
+    
+    # Выбираем случайного победителя
+    winner_id = random.choice(list(giveaway_participants))
+    
+    try:
+        # Получаем информацию о победителе
+        winner = await context.bot.get_chat(winner_id)
+        winner_name = winner.username or winner.first_name or str(winner_id)
+        
+        # Завершаем розыгрыш
+        giveaway_active = False
+        
+        await update.message.reply_text(
+            f'🎊 <b>ПОБЕДИТЕЛЬ ВЫБРАН!</b>\n\n'
+            f'👤 @{winner_name} (ID: {winner_id})\n'
+            f'👥 Всего участвовало: {len(giveaway_participants)}\n\n'
+            f'📢 Опубликуйте результат в канале!\n\n'
+            f'💬 Отправьте победителю:\n'
+            f'<code>Поздравляем! Вы выиграли 500 Stars! 🎉</code>',
+            parse_mode='HTML'
+        )
+        
+        # Пытаемся отправить сообщение победителю
+        try:
+            await context.bot.send_message(
+                chat_id=winner_id,
+                text=(
+                    '🎊 <b>ПОЗДРАВЛЯЕМ!</b>\n\n'
+                    'Вы выиграли в розыгрыше 500 Telegram Stars! 🎁\n\n'
+                    'Администратор свяжется с вами для передачи приза.\n\n'
+                    'Спасибо что с нами! ❤️'
+                ),
+                parse_mode='HTML'
+            )
+        except Forbidden:
+            await update.message.reply_text(
+                f'⚠️ Не удалось отправить сообщение победителю\n'
+                f'(бот заблокирован пользователем)'
+            )
+        
+        logger.info(f'🎊 Победитель розыгрыша: {winner_id} (@{winner_name})')
+        
+    except Exception as e:
+        logger.error(f'Ошибка выбора победителя: {e}')
+        await update.message.reply_text(f'❌ Ошибка: {str(e)}')
+
+async def end_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Завершить розыгрыш без выбора победителя (только для админа)"""
+    user_id = update.effective_user.id
+    
+    if user_id != ADMIN_TG_ID:
+        await update.message.reply_text('❌ Доступ запрещен')
+        return
+    
+    global giveaway_active, giveaway_participants
+    
+    if not giveaway_active:
+        await update.message.reply_text('❌ Нет активного розыгрыша')
+        return
+    
+    participants_count = len(giveaway_participants)
+    giveaway_active = False
+    
+    await update.message.reply_text(
+        f'✅ Розыгрыш завершен\n'
+        f'Участвовало: {participants_count}\n\n'
+        f'Данные сохранены. Используйте /start_giveaway для нового розыгрыша'
+    )
+
+async def post_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Опубликовать анонс розыгрыша в канале (только для админа)"""
+    user_id = update.effective_user.id
+    
+    if user_id != ADMIN_TG_ID:
+        await update.message.reply_text('❌ Доступ запрещен')
+        return
+    
+    global giveaway_active
+    
+    if not giveaway_active:
+        await update.message.reply_text(
+            '⚠️ Сначала запустите розыгрыш командой /start_giveaway'
+        )
+        return
+    
+    giveaway_text = (
+        "🎁 <b>РОЗЫГРЫШ 500 TELEGRAM STARS!</b>\n\n"
+        "Мы дарим 500 Telegram Stars случайному участнику! 🎊\n\n"
+        "🎯 <b>Как участвовать?</b>\n\n"
+        "1️⃣ Подпишись на @anonimka_kz\n"
+        "2️⃣ Создай анонимный профиль в боте\n"
+        "3️⃣ Напиши боту команду /participate\n\n"
+        "⏰ <b>Итоги через 48 часов!</b>\n\n"
+        "🎲 Победитель определится случайным образом\n"
+        "💰 Приз: 500 Stars сразу на твой аккаунт\n\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "💡 <b>Что такое Anonimka?</b>\n\n"
+        "Это не Tinder. Тут пишут как думают.\n"
+        "Анонимные знакомства без фильтров.\n"
+        "Найди кого-то рядом 🔥\n\n"
+        "Без понтов. Только правда.\n"
+        "━━━━━━━━━━━━━━━━"
+    )
+    
+    keyboard = [[
+        InlineKeyboardButton("🚀 Участвовать в розыгрыше", url="https://t.me/anonimka_kz_bot?start=giveaway")
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    try:
+        message = await context.bot.send_message(
+            chat_id=CHANNEL_USERNAME,
+            text=giveaway_text,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+        await update.message.reply_text(
+            f'✅ Анонс розыгрыша опубликован!\n'
+            f'ID поста: {message.message_id}\n\n'
+            f'Теперь ждем участников 🎉'
+        )
+        logger.info(f'✅ Анонс розыгрыша опубликован в {CHANNEL_USERNAME}')
+    except Exception as e:
+        logger.error(f'❌ Ошибка публикации анонса: {e}')
+        await update.message.reply_text(
+            f'❌ Ошибка публикации:\n{str(e)}\n\n'
+            f'Проверьте права бота в канале'
+        )
+
 # Команда публикации приветственного поста в канал
 async def post_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Опубликовать приветственный пост в канале (только для админа)"""
@@ -819,6 +1100,14 @@ def main():
     application.add_handler(CommandHandler("menu", menu_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("post_welcome", post_welcome))
+    
+    # Команды розыгрыша
+    application.add_handler(CommandHandler("start_giveaway", start_giveaway))
+    application.add_handler(CommandHandler("participate", participate_giveaway))
+    application.add_handler(CommandHandler("giveaway_stats", giveaway_stats))
+    application.add_handler(CommandHandler("pick_winner", pick_winner))
+    application.add_handler(CommandHandler("end_giveaway", end_giveaway))
+    application.add_handler(CommandHandler("post_giveaway", post_giveaway))
     
     # Обработчики callback
     application.add_handler(CallbackQueryHandler(menu_command, pattern="^main_menu$"))
