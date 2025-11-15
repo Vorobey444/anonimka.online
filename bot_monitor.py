@@ -21,8 +21,7 @@ ADMIN_ID = 884253640
 CHECK_INTERVAL = 300  # 5 минут
 
 SERVICES_TO_MONITOR = [
-    'telegram-bot.service',
-    'activity-bot.service'
+    'telegram-bot.service'
 ]
 
 def send_telegram_alert(message):
@@ -50,7 +49,7 @@ def check_service_status(service_name):
     """Проверить статус systemd сервиса"""
     try:
         result = subprocess.run(
-            ['systemctl', 'is-active', service_name],
+            ['/usr/bin/systemctl', 'is-active', service_name],
             capture_output=True,
             text=True,
             timeout=5
@@ -64,7 +63,7 @@ def get_service_logs(service_name, lines=20):
     """Получить последние логи сервиса"""
     try:
         result = subprocess.run(
-            ['journalctl', '-u', service_name, '-n', str(lines), '--no-pager'],
+            ['/usr/bin/journalctl', '-u', service_name, '-n', str(lines), '--no-pager'],
             capture_output=True,
             text=True,
             timeout=10
@@ -101,7 +100,7 @@ def restart_service(service_name):
     """Попытаться перезапустить сервис"""
     try:
         subprocess.run(
-            ['systemctl', 'restart', service_name],
+            ['/usr/bin/systemctl', 'restart', service_name],
             timeout=30
         )
         time.sleep(5)  # Ждем 5 секунд после перезапуска

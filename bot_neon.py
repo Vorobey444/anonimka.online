@@ -481,6 +481,13 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     err = context.error
     logger.info(f"Обработка ошибки: {err}")
 
+    # Если конфликт getUpdates - останавливаем бота (запущен в другом месте)
+    if 'conflict' in str(err).lower() and 'getupdates' in str(err).lower():
+        logger.error(f"❌ Критическая ошибка: {err}")
+        logger.error("🚨 ОСТАНОВКА БОТА: Обнаружена другая активная копия бота!")
+        # Не возвращаем, чтобы ошибка прошла дальше и остановила polling
+        raise err
+
     # Если бот был заблокирован пользователем — игнорируем (обычная ситуация)
     try:
         if isinstance(err, Forbidden) or 'bot was blocked' in str(err).lower() or 'forbidden' in str(err).lower():
