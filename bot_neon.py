@@ -78,7 +78,12 @@ async def update_short_description(application: Application):
     description = descriptions[hour % len(descriptions)]
     
     try:
+        # Устанавливаем для всех языков (по умолчанию)
         await application.bot.set_my_short_description(short_description=description)
+        # Устанавливаем явно для русского языка
+        await application.bot.set_my_short_description(short_description=description, language_code="ru")
+        # Устанавливаем явно для английского языка
+        await application.bot.set_my_short_description(short_description=description, language_code="en")
         logger.info(f"✅ Short Description обновлен: {description[:50]}...")
     except Exception as e:
         logger.error(f"❌ Ошибка обновления Short Description: {e}")
