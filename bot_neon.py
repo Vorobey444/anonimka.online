@@ -197,13 +197,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [
         [InlineKeyboardButton("🚀 Создать анкету", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))],
+        [InlineKeyboardButton("📢 Наш канал", url="https://t.me/anonimka_kz")],
         [InlineKeyboardButton("❓ Помощь", callback_data="help")],
         [
             InlineKeyboardButton("📋 Правила", url=f"{API_BASE_URL}/TERMS_OF_SERVICE.md"),
             InlineKeyboardButton("🔒 Политика", url=f"{API_BASE_URL}/PRIVACY_POLICY.md")
         ],
         [InlineKeyboardButton("💬 Тех.поддержка", url="https://t.me/Vorobey_444")],
-        [InlineKeyboardButton("📢 Реклама и сотрудничество", callback_data="advertising")]
+        [InlineKeyboardButton("🤝 Реклама и сотрудничество", callback_data="advertising")]
     ]
     
     await update.message.reply_text(
@@ -220,13 +221,14 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [
         [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}"))],
+        [InlineKeyboardButton("📢 Наш канал", url="https://t.me/anonimka_kz")],
         [InlineKeyboardButton("❓ Помощь", callback_data="help")],
         [
             InlineKeyboardButton("📋 Правила", url=f"{API_BASE_URL}/TERMS_OF_SERVICE.md"),
             InlineKeyboardButton("🔒 Политика", url=f"{API_BASE_URL}/PRIVACY_POLICY.md")
         ],
         [InlineKeyboardButton("💬 Тех.поддержка", url="https://t.me/Vorobey_444")],
-        [InlineKeyboardButton("📢 Реклама и сотрудничество", callback_data="advertising")]
+        [InlineKeyboardButton("🤝 Реклама и сотрудничество", callback_data="advertising")]
     ]
     
     if update.callback_query:
