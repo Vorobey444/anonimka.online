@@ -74,7 +74,9 @@ def get_service_logs(service_name, lines=20):
         return ""
 
 def check_for_errors_in_logs(service_name):
-    """Проверить логи на критические ошибки"""
+    """Проверить логи на критические ошибки за последние 10 минут"""
+    from datetime import datetime, timedelta
+    
     logs = get_service_logs(service_name, lines=50)
     
     error_keywords = [
@@ -87,11 +89,31 @@ def check_for_errors_in_logs(service_name):
         'Timeout'
     ]
     
+    # Временная метка 10 минут назад
+    ten_minutes_ago = datetime.now() - timedelta(minutes=10)
+    
     errors = []
     for line in logs.split('\n'):
+        # Пропускаем Conflict ошибки - они обрабатываются отдельно (бот остановится)
+        if 'conflict' in line.lower() and 'getupdates' in line.lower():
+            continue
+            
         for keyword in error_keywords:
             if keyword in line:
-                errors.append(line.strip())
+                # Проверяем что ошибка свежая (последние 10 минут)
+                try:
+                    # Формат: "Nov 15 14:26:07"
+                    if line.startswith('Nov') or line.startswith('Dec') or line.startswith('Jan'):
+                        date_part = ' '.join(line.split()[:3])  # "Nov 15 14:26:07"
+                        log_time = datetime.strptime(date_part, '%b %d %H:%M:%S')
+                        log_time = log_time.replace(year=datetime.now().year)
+                        
+                        # Только свежие ошибки
+                        if log_time >= ten_minutes_ago:
+                            errors.append(line.strip())
+                except:
+                    # Если не удалось распарсить время - добавляем ошибку
+                    errors.append(line.strip())
                 break
     
     return errors
