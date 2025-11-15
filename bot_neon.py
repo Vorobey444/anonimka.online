@@ -184,7 +184,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /menu - главное меню с полезными ссылками"""
     menu_text = (
-        "📱 **Главное меню Anonimka**\n\n"
+        "📱 <b>Главное меню Anonimka</b>\n\n"
         "Выберите действие из меню ниже:"
     )
     
@@ -203,31 +203,31 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.answer()
         await update.callback_query.message.edit_text(
             menu_text,
-            parse_mode='Markdown',
+            parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     else:
         await update.message.reply_text(
             menu_text,
-            parse_mode='Markdown',
+            parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /help - информация о боте"""
     help_text = (
-        "📖 **Справка по Anonimka.kz**\n\n"
-        "🚀 **Запустить приложение** - открыть WebApp для создания анкет и общения\n\n"
-        "❓ **Помощь** - показать эту справку\n\n"
-        "💡 **Как пользоваться:**\n"
+        "📖 <b>Справка по Anonimka.kz</b>\n\n"
+        "🚀 <b>Запустить приложение</b> - открыть WebApp для создания анкет и общения\n\n"
+        "❓ <b>Помощь</b> - показать эту справку\n\n"
+        "💡 <b>Как пользоваться:</b>\n"
         "1. Нажмите 'Запустить приложение'\n"
         "2. Создайте анкету или просмотрите существующие\n"
         "3. Начните общение в чате\n"
         "4. Получайте уведомления о новых сообщениях здесь в боте\n\n"
         "🎯 Все анкеты анонимны и автоматически удаляются через 7 дней!\n\n"
-        "📋 **Полезные ссылки:**\n"
-        "• [Правила использования]({API_BASE_URL}/TERMS_OF_SERVICE.md)\n"
-        "• [Политика конфиденциальности]({API_BASE_URL}/PRIVACY_POLICY.md)\n"
+        "📋 <b>Полезные ссылки:</b>\n"
+        f"• <a href='{API_BASE_URL}/TERMS_OF_SERVICE.md'>Правила использования</a>\n"
+        f"• <a href='{API_BASE_URL}/PRIVACY_POLICY.md'>Политика конфиденциальности</a>\n"
         "• Тех.поддержка: @Vorobey_444"
     )
     
@@ -240,13 +240,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.answer()
         await update.callback_query.message.edit_text(
             help_text,
-            parse_mode='Markdown',
+            parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     else:
         await update.message.reply_text(
             help_text,
-            parse_mode='Markdown',
+            parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
@@ -256,12 +256,12 @@ async def advertising_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
     
     advertising_text = (
-        "📢 **Реклама и сотрудничество**\n\n"
+        "📢 <b>Реклама и сотрудничество</b>\n\n"
         
         "Заинтересованы в размещении рекламы или сотрудничестве?\n"
         "Мы открыты к предложениям!\n\n"
         
-        "🔹 **Контакты для связи:**\n"
+        "🔹 <b>Контакты для связи:</b>\n"
         "📧 Email: aleksey@vorobey444.ru\n"
         "💬 Telegram: @Vorobey_444\n\n"
         
@@ -274,7 +274,7 @@ async def advertising_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.edit_message_text(
         text=advertising_text,
         reply_markup=reply_markup,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 async def my_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
