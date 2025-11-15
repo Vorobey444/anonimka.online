@@ -203,7 +203,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [
         [InlineKeyboardButton("🚀 Создать анкету", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))],
-        [InlineKeyboardButton("📢 Наш канал", url="https://t.me/anonimka_kz")],
+        [InlineKeyboardButton("📢 Наш канал", url="https://t.me/anonimka_kz")]
+    ]
+    
+    # Добавляем кнопку розыгрыша если он активен
+    global giveaway_active
+    if giveaway_active:
+        keyboard.append([InlineKeyboardButton("🎁 Участвовать в розыгрыше", callback_data="participate_giveaway")])
+    
+    keyboard.extend([
         [InlineKeyboardButton("❓ Помощь", callback_data="help")],
         [
             InlineKeyboardButton("📋 Правила", url=f"{API_BASE_URL}/TERMS_OF_SERVICE.md"),
@@ -211,7 +219,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [InlineKeyboardButton("💬 Тех.поддержка", url="https://t.me/Vorobey_444")],
         [InlineKeyboardButton("🤝 Реклама и сотрудничество", callback_data="advertising")]
-    ]
+    ])
     
     await update.message.reply_text(
         selected_greeting,
@@ -227,7 +235,15 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [
         [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}"))],
-        [InlineKeyboardButton("📢 Наш канал", url="https://t.me/anonimka_kz")],
+        [InlineKeyboardButton("📢 Наш канал", url="https://t.me/anonimka_kz")]
+    ]
+    
+    # Добавляем кнопку розыгрыша если он активен
+    global giveaway_active
+    if giveaway_active:
+        keyboard.append([InlineKeyboardButton("🎁 Участвовать в розыгрыше", callback_data="participate_giveaway")])
+    
+    keyboard.extend([
         [InlineKeyboardButton("❓ Помощь", callback_data="help")],
         [
             InlineKeyboardButton("📋 Правила", url=f"{API_BASE_URL}/TERMS_OF_SERVICE.md"),
@@ -235,7 +251,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [InlineKeyboardButton("💬 Тех.поддержка", url="https://t.me/Vorobey_444")],
         [InlineKeyboardButton("🤝 Реклама и сотрудничество", callback_data="advertising")]
-    ]
+    ])
     
     if update.callback_query:
         await update.callback_query.answer()
@@ -949,6 +965,76 @@ async def pick_winner(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f'Ошибка выбора победителя: {e}')
         await update.message.reply_text(f'❌ Ошибка: {str(e)}')
 
+async def participate_giveaway_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик кнопки участия в розыгрыше"""
+    query = update.callback_query
+    await query.answer()
+    
+    global giveaway_active, giveaway_participants
+    
+    if not giveaway_active:
+        await query.message.reply_text(
+            '❌ Сейчас нет активного розыгрыша\n\n'
+            'Следите за новостями в @anonimka_kz'
+        )
+        return
+    
+    user = update.effective_user
+    user_id = user.id
+    
+    # Проверяем, уже участвует ли
+    if user_id in giveaway_participants:
+        await query.message.reply_text(
+            '✅ Вы уже участвуете в розыгрыше!\n\n'
+            f'Всего участников: {len(giveaway_participants)}'
+        )
+        return
+    
+    # Проверяем подписку на канал
+    try:
+        member = await context.bot.get_chat_member(CHANNEL_USERNAME, user_id)
+        if member.status not in ['member', 'administrator', 'creator']:
+            await query.message.reply_text(
+                '❌ Сначала подпишитесь на канал @anonimka_kz\n\n'
+                'После подписки нажмите кнопку снова',
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("📢 Подписаться", url="https://t.me/anonimka_kz")
+                ]])
+            )
+            return
+    except Exception as e:
+        logger.warning(f'Не удалось проверить подписку для {user_id}: {e}')
+    
+    # Проверяем наличие профиля через API
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'{API_BASE_URL}/api/user?telegram_id={user_id}') as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if not data.get('user'):
+                        await query.message.reply_text(
+                            '❌ Сначала создайте анонимный профиль!\n\n'
+                            'Нажмите кнопку ниже чтобы начать 👇',
+                            reply_markup=InlineKeyboardMarkup([[
+                                InlineKeyboardButton("🚀 Создать профиль", web_app=WebAppInfo(url=API_BASE_URL))
+                            ]])
+                        )
+                        return
+    except Exception as e:
+        logger.error(f'Ошибка проверки профиля: {e}')
+    
+    # Добавляем участника
+    giveaway_participants.add(user_id)
+    
+    await query.message.reply_text(
+        f'🎉 Отлично! Вы участвуете в розыгрыше!\n\n'
+        f'👥 Всего участников: {len(giveaway_participants)}\n\n'
+        f'🍀 Желаем удачи!\n'
+        f'Следите за результатами в @anonimka_kz'
+    )
+    
+    logger.info(f'✅ Новый участник розыгрыша: {user_id} (@{user.username or "no_username"})')
+
 async def end_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Завершить розыгрыш без выбора победителя (только для админа)"""
     user_id = update.effective_user.id
@@ -1113,6 +1199,7 @@ def main():
     application.add_handler(CallbackQueryHandler(menu_command, pattern="^main_menu$"))
     application.add_handler(CallbackQueryHandler(help_command, pattern="^help$"))
     application.add_handler(CallbackQueryHandler(advertising_command, pattern="^advertising$"))
+    application.add_handler(CallbackQueryHandler(participate_giveaway_callback, pattern="^participate_giveaway$"))
     application.add_handler(CallbackQueryHandler(open_chat_callback, pattern="^openchat_"))
     application.add_handler(CallbackQueryHandler(show_my_chats_callback, pattern="^show_my_chats$"))
     
