@@ -715,12 +715,6 @@ def main():
     # Создаём приложение
     application = Application.builder().token(BOT_TOKEN).build()
     
-    # Настраиваем Menu Button при запуске
-    application.job_queue.run_once(
-        lambda context: setup_menu_button(application),
-        when=0.1
-    )
-    
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("menu", menu_command))
@@ -743,6 +737,10 @@ def main():
     
     # Глобальный обработчик ошибок
     application.add_error_handler(error_handler)
+    
+    # Настраиваем Menu Button перед запуском
+    import asyncio
+    asyncio.get_event_loop().run_until_complete(setup_menu_button(application))
     
     # Запускаем бота
     print("🤖 Бот запущен и работает...")
