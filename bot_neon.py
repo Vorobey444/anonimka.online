@@ -377,6 +377,10 @@ async def my_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик текстовых сообщений - отправка в активный чат"""
+    # Игнорируем сообщения из каналов и без пользователя
+    if not update.effective_user or not update.message:
+        return
+    
     user_id = update.effective_user.id
     message_text = update.message.text
     
