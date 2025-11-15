@@ -747,6 +747,50 @@ async def reports_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f'Ошибка получения жалоб: {e}')
         await update.message.reply_text('❌ Ошибка')
 
+# Команда публикации приветственного поста в канал
+async def post_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Опубликовать приветственный пост в канале (только для админа)"""
+    user_id = update.effective_user.id
+    
+    if user_id != ADMIN_TG_ID:
+        await update.message.reply_text('❌ Доступ запрещен')
+        return
+    
+    channel_username = "@anonimka_kz"
+    
+    welcome_text = (
+        "👋 Добро пожаловать в Anonimka!\n\n"
+        "Тут не Tinder и не Badoo.\n"
+        "Тут пишут как думают. Без масок.\n\n"
+        "🎭 Анонимность гарантирована\n"
+        "📍 Знакомства в твоем городе\n"
+        "🔥 Никаких понтов\n\n"
+        "Готов попробовать? 👇"
+    )
+    
+    keyboard = [[InlineKeyboardButton("🚀 Начать знакомства", url="https://t.me/anonimka_kz_bot")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    try:
+        message = await context.bot.send_message(
+            chat_id=channel_username,
+            text=welcome_text,
+            reply_markup=reply_markup
+        )
+        await update.message.reply_text(
+            f'✅ Приветственный пост опубликован в канале!\n'
+            f'ID поста: {message.message_id}'
+        )
+        logger.info(f'✅ Приветственный пост опубликован в {channel_username}')
+    except Exception as e:
+        logger.error(f'❌ Ошибка публикации в канал: {e}')
+        await update.message.reply_text(
+            f'❌ Ошибка публикации в канал:\n{str(e)}\n\n'
+            f'Убедитесь что:\n'
+            f'1. Бот добавлен в администраторы канала\n'
+            f'2. У бота есть право "Публикация сообщений"'
+        )
+
 def main():
     """Запуск бота"""
     if not BOT_TOKEN:
@@ -770,6 +814,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("menu", menu_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("post_welcome", post_welcome))
     
     # Обработчики callback
     application.add_handler(CallbackQueryHandler(menu_command, pattern="^main_menu$"))
