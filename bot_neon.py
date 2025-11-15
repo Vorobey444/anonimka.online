@@ -209,7 +209,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Добавляем кнопку розыгрыша если он активен
     global giveaway_active
     if giveaway_active:
-        keyboard.append([InlineKeyboardButton("🎁 Участвовать в розыгрыше", callback_data="participate_giveaway")])
+        keyboard.append([InlineKeyboardButton("✅ Я выполнил условия розыгрыша", callback_data="participate_giveaway")])
     
     keyboard.extend([
         [InlineKeyboardButton("❓ Помощь", callback_data="help")],
@@ -241,7 +241,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Добавляем кнопку розыгрыша если он активен
     global giveaway_active
     if giveaway_active:
-        keyboard.append([InlineKeyboardButton("🎁 Участвовать в розыгрыше", callback_data="participate_giveaway")])
+        keyboard.append([InlineKeyboardButton("✅ Я выполнил условия розыгрыша", callback_data="participate_giveaway")])
     
     keyboard.extend([
         [InlineKeyboardButton("❓ Помощь", callback_data="help")],
@@ -807,7 +807,7 @@ async def start_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
         '🎯 <b>Условия:</b>\n'
         '1️⃣ Подписаться на канал @anonimka_kz\n'
         '2️⃣ Создать анонимный профиль в боте @anonimka_kz_bot\n'
-        '3️⃣ Написать боту команду /participate\n\n'
+        '3️⃣ Нажать в боте кнопку <b>✅ Я выполнил условия розыгрыша</b>\n\n'
         '⏰ Розыгрыш через 48 часов!\n'
         '🎲 Победитель - случайный участник\n\n'
         '💡 Создай профиль → Найди кого-то рядом 🔥\n'
@@ -1079,8 +1079,9 @@ async def post_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Мы дарим 500 Telegram Stars случайному участнику! 🎊\n\n"
         "🎯 <b>Как участвовать?</b>\n\n"
         "1️⃣ Подпишись на @anonimka_kz\n"
-        "2️⃣ Создай анонимный профиль в боте\n"
-        "3️⃣ Напиши боту команду /participate\n\n"
+        "2️⃣ Открой бота и создай анонимный профиль\n"
+        "3️⃣ После создания профиля нажми в боте кнопку:\n"
+        "    <b>✅ Я выполнил условия розыгрыша</b>\n\n"
         "⏰ <b>Итоги через 48 часов!</b>\n\n"
         "🎲 Победитель определится случайным образом\n"
         "💰 Приз: 500 Stars сразу на твой аккаунт\n\n"
