@@ -186,7 +186,8 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("📋 Правила", url=f"{API_BASE_URL}/TERMS_OF_SERVICE.md"),
             InlineKeyboardButton("🔒 Политика", url=f"{API_BASE_URL}/PRIVACY_POLICY.md")
         ],
-        [InlineKeyboardButton("💬 Тех.поддержка", url="https://t.me/Vorobey_444")]
+        [InlineKeyboardButton("💬 Тех.поддержка", url="https://t.me/Vorobey_444")],
+        [InlineKeyboardButton("📢 Реклама и сотрудничество", callback_data="advertising")]
     ]
     
     if update.callback_query:
@@ -239,6 +240,33 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+
+async def advertising_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать информацию о рекламе и сотрудничестве"""
+    query = update.callback_query
+    await query.answer()
+    
+    advertising_text = (
+        "📢 **Реклама и сотрудничество**\n\n"
+        
+        "Заинтересованы в размещении рекламы или сотрудничестве?\n"
+        "Мы открыты к предложениям!\n\n"
+        
+        "🔹 **Контакты для связи:**\n"
+        "📧 Email: aleksey@vorobey444.ru\n"
+        "💬 Telegram: @Vorobey_444\n\n"
+        
+        "Свяжитесь с нами для обсуждения деталей и условий сотрудничества."
+    )
+    
+    keyboard = [[InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(
+        text=advertising_text,
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
 
 async def my_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /my_chats - показать мои чаты"""
@@ -701,6 +729,7 @@ def main():
     # Обработчики callback
     application.add_handler(CallbackQueryHandler(menu_command, pattern="^main_menu$"))
     application.add_handler(CallbackQueryHandler(help_command, pattern="^help$"))
+    application.add_handler(CallbackQueryHandler(advertising_command, pattern="^advertising$"))
     application.add_handler(CallbackQueryHandler(open_chat_callback, pattern="^openchat_"))
     application.add_handler(CallbackQueryHandler(show_my_chats_callback, pattern="^show_my_chats$"))
     
