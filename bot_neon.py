@@ -55,6 +55,13 @@ async def setup_menu_button(application: Application):
             )
         )
         logger.info("✅ Menu Button настроен успешно")
+        
+        # Устанавливаем короткое описание (серый текст вместо "Бот")
+        await application.bot.set_my_short_description(
+            short_description="325,422 пользователей"
+        )
+        logger.info("✅ Short Description установлен")
+        
     except Exception as e:
         logger.error(f"❌ Ошибка настройки Menu Button: {e}")
 
