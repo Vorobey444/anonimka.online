@@ -165,11 +165,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     selected_greeting = random.choice(greetings)
     
+    keyboard = [
+        [InlineKeyboardButton("🚀 Создать анкету", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))],
+        [InlineKeyboardButton("❓ Помощь", callback_data="help")],
+        [
+            InlineKeyboardButton("📋 Правила", url=f"{API_BASE_URL}/TERMS_OF_SERVICE.md"),
+            InlineKeyboardButton("🔒 Политика", url=f"{API_BASE_URL}/PRIVACY_POLICY.md")
+        ],
+        [InlineKeyboardButton("💬 Тех.поддержка", url="https://t.me/Vorobey_444")],
+        [InlineKeyboardButton("📢 Реклама и сотрудничество", callback_data="advertising")]
+    ]
+    
     await update.message.reply_text(
         selected_greeting,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚀 Создать анкету", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))]
-        ])
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
