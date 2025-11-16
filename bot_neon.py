@@ -1252,32 +1252,83 @@ async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     requested_months = context.user_data.get('requested_months')
     
     if requested_months and requested_months in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
-        # Создаём фейковый callback_query для обработки автоматической покупки
+        # Создаём invoice напрямую без фейкового callback
         logger.info(f"🎯 Автоматическая покупка {requested_months} месяцев от user {update.effective_user.id}")
-        
-        # Создаём синтетический Update с callback_query
-        from telegram import CallbackQuery, Message
-        
-        # Создаём фейковый callback_query
-        fake_callback = CallbackQuery(
-            id=str(update.update_id),
-            from_user=update.effective_user,
-            chat_instance=str(update.effective_chat.id),
-            data=f"buy_pro_{requested_months}",
-            message=update.message
-        )
-        
-        # Создаём новый Update с этим callback
-        fake_update = Update(
-            update_id=update.update_id,
-            callback_query=fake_callback
-        )
         
         # Очищаем requested_months чтобы не зациклиться
         context.user_data.pop('requested_months', None)
         
-        # Вызываем обработчик покупки
-        await buy_premium_callback(fake_update, context)
+        # Запрашиваем цену с API
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f'{API_BASE_URL}/api/premium/calculate?months={requested_months}',
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    if resp.status != 200:
+                        logger.error(f'❌ API calculate вернул {resp.status}')
+                        await update.message.reply_text('❌ Ошибка расчёта цены. Попробуйте позже.')
+                        return
+                    
+                    data = await resp.json()
+                    if data.get('error'):
+                        logger.error(f"❌ API calculate error: {data['error']}")
+                        await update.message.reply_text('❌ Ошибка расчёта цены')
+                        return
+                    
+                    # Формируем plan из данных API
+                    plan = {
+                        'months': data['months'],
+                        'price': data['stars'],
+                        'discount': data.get('discount', 0)
+                    }
+                    
+        except Exception as e:
+            logger.error(f'❌ Ошибка запроса к API calculate: {e}')
+            await update.message.reply_text('❌ Ошибка соединения с сервером')
+            return
+        
+        # Отправляем счет для оплаты Stars
+        from telegram import LabeledPrice
+        
+        month_word = "месяц" if requested_months == 1 else ("месяца" if 2 <= requested_months <= 4 else "месяцев")
+        
+        title = f"⭐ Anonimka PRO - {requested_months} {month_word}"
+        
+        discount_text = ""
+        if plan['discount'] > 0:
+            discount_text = f" 🔥 Скидка {plan['discount']}%!\n"
+        
+        description = (
+            f"Подписка Anonimka PRO на {requested_months} {month_word}\n"
+            f"{discount_text}\n"
+            "✅ Безлимитные сообщения\n"
+            "✅ Приоритет в поиске\n"
+            "✅ Расширенные фильтры\n"
+            "✅ Видно кто лайкнул\n"
+            "✅ Без рекламы\n"
+            "✅ Эксклюзивный бейдж"
+        )
+        
+        prices = [LabeledPrice(label=f"{requested_months} {month_word}", amount=plan['price'])]
+        
+        payload = f"premium_{requested_months}_{update.effective_user.id}_{int(asyncio.get_event_loop().time())}"
+        
+        try:
+            await context.bot.send_invoice(
+                chat_id=update.effective_chat.id,
+                title=title,
+                description=description,
+                payload=payload,
+                provider_token="",
+                currency="XTR",
+                prices=prices
+            )
+            logger.info(f'💳 Invoice отправлен user {update.effective_user.id} для тарифа {requested_months} мес.')
+        except Exception as e:
+            logger.error(f'❌ Ошибка отправки invoice: {e}')
+            await update.message.reply_text('❌ Ошибка создания счета\nПопробуйте позже или обратитесь в поддержку')
+        
         return
     
     premium_text = (
