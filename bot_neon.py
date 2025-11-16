@@ -212,6 +212,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("✅ Я выполнил условия розыгрыша", callback_data="participate_giveaway")])
     
     keyboard.extend([
+        [InlineKeyboardButton("⭐ Купить PRO", callback_data="premium")],
         [InlineKeyboardButton("❓ Помощь", callback_data="help")],
         [
             InlineKeyboardButton("📋 Правила", url=f"{API_BASE_URL}/TERMS_OF_SERVICE.md"),
@@ -244,6 +245,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("✅ Я выполнил условия розыгрыша", callback_data="participate_giveaway")])
     
     keyboard.extend([
+        [InlineKeyboardButton("⭐ Купить PRO", callback_data="premium")],
         [InlineKeyboardButton("❓ Помощь", callback_data="help")],
         [
             InlineKeyboardButton("📋 Правила", url=f"{API_BASE_URL}/TERMS_OF_SERVICE.md"),
@@ -1119,6 +1121,166 @@ async def post_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f'Проверьте права бота в канале'
         )
 
+# ============================================
+# КОМАНДЫ ДЛЯ ПОКУПКИ PRO ЗА TELEGRAM STARS
+# ============================================
+
+async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /premium или callback - показ тарифов PRO"""
+    premium_text = (
+        "⭐ <b>Anonimka PRO</b>\n\n"
+        "Получи максимум от анонимных знакомств!\n\n"
+        "<b>Что входит в PRO:</b>\n"
+        "✅ Безлимитные сообщения\n"
+        "✅ Приоритет в поиске\n"
+        "✅ Расширенные фильтры\n"
+        "✅ Видно кто лайкнул профиль\n"
+        "✅ Без рекламы\n"
+        "✅ Эксклюзивный бейдж PRO\n\n"
+        "<b>Выбери тариф:</b>"
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("⭐ 1 месяц - 250 Stars", callback_data="buy_pro_1")],
+        [InlineKeyboardButton("⭐ 3 месяца - 600 Stars (-20%)", callback_data="buy_pro_3")],
+        [InlineKeyboardButton("⭐ 6 месяцев - 1000 Stars (-33%)", callback_data="buy_pro_6")],
+        [InlineKeyboardButton("⭐ 1 год - 1800 Stars (-40%)", callback_data="buy_pro_12")],
+        [InlineKeyboardButton("❓ Как купить Stars", url="https://t.me/PremiumBot")],
+        [InlineKeyboardButton("« Назад в меню", callback_data="main_menu")]
+    ]
+    
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.message.edit_text(
+            premium_text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        await update.message.reply_text(
+            premium_text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+async def buy_premium_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик покупки PRO за Stars"""
+    query = update.callback_query
+    await query.answer()
+    
+    # Определяем тариф
+    plans = {
+        "buy_pro_1": {"months": 1, "price": 250, "title": "1 месяц PRO", "save": ""},
+        "buy_pro_3": {"months": 3, "price": 600, "title": "3 месяца PRO", "save": " (экономия 20%)"},
+        "buy_pro_6": {"months": 6, "price": 1000, "title": "6 месяцев PRO", "save": " (экономия 33%)"},
+        "buy_pro_12": {"months": 12, "price": 1800, "title": "1 год PRO", "save": " (экономия 40%)"}
+    }
+    
+    plan = plans.get(query.data)
+    if not plan:
+        return
+    
+    # Отправляем счет для оплаты Stars
+    from telegram import LabeledPrice
+    
+    title = f"⭐ {plan['title']}"
+    description = (
+        f"Подписка Anonimka PRO на {plan['months']} мес.{plan['save']}\n\n"
+        "✅ Безлимитные сообщения\n"
+        "✅ Приоритет в поиске\n"
+        "✅ Расширенные фильтры\n"
+        "✅ Видно кто лайкнул\n"
+        "✅ Без рекламы\n"
+        "✅ Эксклюзивный бейдж"
+    )
+    
+    prices = [LabeledPrice(label=plan['title'], amount=plan['price'])]
+    
+    # Payload для идентификации платежа
+    payload = f"premium_{plan['months']}_{query.from_user.id}_{int(asyncio.get_event_loop().time())}"
+    
+    try:
+        await context.bot.send_invoice(
+            chat_id=query.message.chat_id,
+            title=title,
+            description=description,
+            payload=payload,
+            provider_token="",  # Пустая строка для Stars
+            currency="XTR",  # Валюта Telegram Stars
+            prices=prices
+        )
+        logger.info(f'💳 Invoice отправлен user {query.from_user.id} для тарифа {plan["months"]} мес.')
+    except Exception as e:
+        logger.error(f'❌ Ошибка отправки invoice: {e}')
+        await query.message.reply_text(
+            '❌ Ошибка создания счета\n'
+            'Попробуйте позже или обратитесь в поддержку'
+        )
+
+async def successful_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик успешного платежа Stars"""
+    payment = update.message.successful_payment
+    user = update.effective_user
+    
+    # Парсим payload
+    try:
+        payload_parts = payment.invoice_payload.split('_')
+        months = int(payload_parts[1])
+    except:
+        months = 1
+    
+    logger.info(f'💰 Успешный платеж: {user.id} ({user.username}) купил PRO на {months} мес.')
+    
+    # Активируем PRO через API
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f'{API_BASE_URL}/api/premium/activate',
+                json={
+                    'telegram_id': user.id,
+                    'months': months,
+                    'transaction_id': payment.telegram_payment_charge_id,
+                    'amount': payment.total_amount
+                },
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                if resp.status == 200:
+                    await update.message.reply_text(
+                        f'🎉 <b>Поздравляем, {user.first_name}!</b>\n\n'
+                        f'⭐ PRO подписка активирована на <b>{months} мес.</b>\n\n'
+                        f'✨ Все функции уже доступны в приложении!\n\n'
+                        f'💡 <i>Хочешь заработать? Стань партнером и получай 40% с покупок друзей! '
+                        f'Команда /affiliate</i>\n\n'
+                        f'Спасибо что с нами! ❤️',
+                        parse_mode='HTML'
+                    )
+                    logger.info(f'✅ PRO активирован для {user.id} на {months} мес.')
+                else:
+                    error_text = await resp.text()
+                    logger.error(f'❌ API вернул {resp.status}: {error_text}')
+                    await update.message.reply_text(
+                        '❌ Ошибка активации PRO\n\n'
+                        'Платеж получен, но возникла техническая ошибка.\n'
+                        'Напишите в поддержку: @Vorobey_444\n\n'
+                        f'ID транзакции: {payment.telegram_payment_charge_id}'
+                    )
+    except asyncio.TimeoutError:
+        logger.error(f'❌ Timeout активации PRO для {user.id}')
+        await update.message.reply_text(
+            '⏱️ Превышено время ожидания\n\n'
+            'Платеж получен, PRO будет активирован в течение 5 минут.\n'
+            'Если этого не произошло - напишите @Vorobey_444\n\n'
+            f'ID транзакции: {payment.telegram_payment_charge_id}'
+        )
+    except Exception as e:
+        logger.error(f'❌ Ошибка активации PRO: {e}')
+        await update.message.reply_text(
+            '❌ Техническая ошибка активации\n\n'
+            'Платеж получен успешно!\n'
+            'Напишите в поддержку для активации: @Vorobey_444\n\n'
+            f'ID транзакции: {payment.telegram_payment_charge_id}'
+        )
+
 # Команда публикации приветственного поста в канал
 async def post_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Опубликовать приветственный пост в канале (только для админа)"""
@@ -1196,10 +1358,16 @@ def main():
     application.add_handler(CommandHandler("end_giveaway", end_giveaway))
     application.add_handler(CommandHandler("post_giveaway", post_giveaway))
     
+    # Команды PRO подписки
+    application.add_handler(CommandHandler("premium", premium_command))
+    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
+    
     # Обработчики callback
     application.add_handler(CallbackQueryHandler(menu_command, pattern="^main_menu$"))
     application.add_handler(CallbackQueryHandler(help_command, pattern="^help$"))
     application.add_handler(CallbackQueryHandler(advertising_command, pattern="^advertising$"))
+    application.add_handler(CallbackQueryHandler(premium_command, pattern="^premium$"))
+    application.add_handler(CallbackQueryHandler(buy_premium_callback, pattern="^buy_pro_"))
     application.add_handler(CallbackQueryHandler(participate_giveaway_callback, pattern="^participate_giveaway$"))
     application.add_handler(CallbackQueryHandler(open_chat_callback, pattern="^openchat_"))
     application.add_handler(CallbackQueryHandler(show_my_chats_callback, pattern="^show_my_chats$"))
