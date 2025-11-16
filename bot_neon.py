@@ -1141,10 +1141,10 @@ async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     keyboard = [
-        [InlineKeyboardButton("⭐ 1 месяц - 250 Stars", callback_data="buy_pro_1")],
-        [InlineKeyboardButton("⭐ 3 месяца - 600 Stars (-20%)", callback_data="buy_pro_3")],
-        [InlineKeyboardButton("⭐ 6 месяцев - 1000 Stars (-33%)", callback_data="buy_pro_6")],
-        [InlineKeyboardButton("⭐ 1 год - 1800 Stars (-40%)", callback_data="buy_pro_12")],
+        [InlineKeyboardButton("🔥 1 месяц - 50 Stars (всего 499₸!)", callback_data="buy_pro_1")],
+        [InlineKeyboardButton("⭐ 3 месяца - 130 Stars (-17%)", callback_data="buy_pro_3")],
+        [InlineKeyboardButton("💎 6 месяцев - 215 Stars (-30%)", callback_data="buy_pro_6")],
+        [InlineKeyboardButton("👑 1 год - 360 Stars (-41%)", callback_data="buy_pro_12")],
         [InlineKeyboardButton("❓ Как купить Stars", url="https://t.me/PremiumBot")],
         [InlineKeyboardButton("« Назад в меню", callback_data="main_menu")]
     ]
@@ -1168,12 +1168,12 @@ async def buy_premium_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     await query.answer()
     
-    # Определяем тариф
+    # Определяем тариф (стартовые цены 499₸/мес)
     plans = {
-        "buy_pro_1": {"months": 1, "price": 250, "title": "1 месяц PRO", "save": ""},
-        "buy_pro_3": {"months": 3, "price": 600, "title": "3 месяца PRO", "save": " (экономия 20%)"},
-        "buy_pro_6": {"months": 6, "price": 1000, "title": "6 месяцев PRO", "save": " (экономия 33%)"},
-        "buy_pro_12": {"months": 12, "price": 1800, "title": "1 год PRO", "save": " (экономия 40%)"}
+        "buy_pro_1": {"months": 1, "price": 50, "title": "1 месяц PRO", "save": "", "kzt": "499₸"},
+        "buy_pro_3": {"months": 3, "price": 130, "title": "3 месяца PRO", "save": " (экономия 17%)", "kzt": "1,249₸"},
+        "buy_pro_6": {"months": 6, "price": 215, "title": "6 месяцев PRO", "save": " (экономия 30%)", "kzt": "2,099₸"},
+        "buy_pro_12": {"months": 12, "price": 360, "title": "1 год PRO", "save": " (экономия 41%)", "kzt": "3,499₸"}
     }
     
     plan = plans.get(query.data)
