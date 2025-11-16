@@ -105,9 +105,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.args and len(context.args) > 0:
         start_param = context.args[0]
         
-        # Если это покупка PRO
-        if start_param == 'buy_premium':
-            logger.info(f"💳 Запрос покупки PRO от user {user.id}")
+        # Если это покупка PRO с указанием срока (buy_premium_3m, buy_premium_6m и т.д.)
+        if start_param.startswith('buy_premium'):
+            logger.info(f"💳 Запрос покупки PRO от user {user.id}: {start_param}")
+            
+            # Извлекаем количество месяцев из параметра (buy_premium_3m -> 3)
+            if '_' in start_param and start_param.endswith('m'):
+                months_str = start_param.split('_')[-1].replace('m', '')
+                try:
+                    months = int(months_str)
+                    # Сохраняем в context для использования в premium_command
+                    context.user_data['requested_months'] = months
+                except ValueError:
+                    pass
+            
             await premium_command(update, context)
             return
         
@@ -1236,6 +1247,39 @@ async def post_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /premium или callback - показ тарифов PRO"""
+    
+    # Проверяем, был ли указан конкретный срок подписки (из WebApp slider)
+    requested_months = context.user_data.get('requested_months')
+    
+    if requested_months and requested_months in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
+        # Создаём фейковый callback_query для обработки автоматической покупки
+        logger.info(f"🎯 Автоматическая покупка {requested_months} месяцев от user {update.effective_user.id}")
+        
+        # Создаём синтетический Update с callback_query
+        from telegram import CallbackQuery, Message
+        
+        # Создаём фейковый callback_query
+        fake_callback = CallbackQuery(
+            id=str(update.update_id),
+            from_user=update.effective_user,
+            chat_instance=str(update.effective_chat.id),
+            data=f"buy_pro_{requested_months}",
+            message=update.message
+        )
+        
+        # Создаём новый Update с этим callback
+        fake_update = Update(
+            update_id=update.update_id,
+            callback_query=fake_callback
+        )
+        
+        # Очищаем requested_months чтобы не зациклиться
+        context.user_data.pop('requested_months', None)
+        
+        # Вызываем обработчик покупки
+        await buy_premium_callback(fake_update, context)
+        return
+    
     premium_text = (
         "⭐ <b>Anonimka PRO</b>\n\n"
         "Получи максимум от анонимных знакомств!\n\n"
@@ -1277,24 +1321,64 @@ async def buy_premium_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     await query.answer()
     
-    # Определяем тариф (стартовые цены 499₸/мес)
-    plans = {
-        "buy_pro_1": {"months": 1, "price": 50, "title": "1 месяц PRO", "save": "", "kzt": "499₸"},
-        "buy_pro_3": {"months": 3, "price": 130, "title": "3 месяца PRO", "save": " (экономия 17%)", "kzt": "1,249₸"},
-        "buy_pro_6": {"months": 6, "price": 215, "title": "6 месяцев PRO", "save": " (экономия 30%)", "kzt": "2,099₸"},
-        "buy_pro_12": {"months": 12, "price": 360, "title": "1 год PRO", "save": " (экономия 41%)", "kzt": "3,499₸"}
-    }
+    # Извлекаем количество месяцев из callback_data (buy_pro_3 -> 3)
+    try:
+        months = int(query.data.replace('buy_pro_', ''))
+        if months < 1 or months > 12:
+            await query.message.reply_text('❌ Неверный тариф. Выберите от 1 до 12 месяцев.')
+            return
+    except ValueError:
+        await query.message.reply_text('❌ Ошибка определения тарифа')
+        return
     
-    plan = plans.get(query.data)
-    if not plan:
+    # Запрашиваем цену с API /api/premium/calculate
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f'{API_BASE_URL}/api/premium/calculate?months={months}',
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                if resp.status != 200:
+                    logger.error(f'❌ API calculate вернул {resp.status}')
+                    await query.message.reply_text('❌ Ошибка расчёта цены. Попробуйте позже.')
+                    return
+                
+                data = await resp.json()
+                if data.get('error'):
+                    logger.error(f"❌ API calculate error: {data['error']}")
+                    await query.message.reply_text('❌ Ошибка расчёта цены')
+                    return
+                
+                # Формируем plan из данных API
+                plan = {
+                    'months': data['months'],
+                    'price': data['stars'],
+                    'title': f"{months} мес." if months != 1 else "1 месяц",
+                    'discount': data.get('discount', 0),
+                    'kzt': round(data.get('kzt_equivalent', 0))
+                }
+                
+    except Exception as e:
+        logger.error(f'❌ Ошибка запроса к API calculate: {e}')
+        await query.message.reply_text('❌ Ошибка соединения с сервером')
         return
     
     # Отправляем счет для оплаты Stars
     from telegram import LabeledPrice
     
-    title = f"⭐ {plan['title']}"
+    # Склонение слова "месяц"
+    month_word = "месяц" if months == 1 else ("месяца" if 2 <= months <= 4 else "месяцев")
+    
+    title = f"⭐ Anonimka PRO - {months} {month_word}"
+    
+    # Добавляем информацию о скидке в description
+    discount_text = ""
+    if plan['discount'] > 0:
+        discount_text = f" 🔥 Скидка {plan['discount']}%!\n"
+    
     description = (
-        f"Подписка Anonimka PRO на {plan['months']} мес.{plan['save']}\n\n"
+        f"Подписка Anonimka PRO на {months} {month_word}\n"
+        f"{discount_text}\n"
         "✅ Безлимитные сообщения\n"
         "✅ Приоритет в поиске\n"
         "✅ Расширенные фильтры\n"
