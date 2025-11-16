@@ -1217,6 +1217,70 @@ async def buy_premium_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             'Попробуйте позже или обратитесь в поддержку'
         )
 
+async def referral_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Реферальная программа - получить ссылку и статистику"""
+    user = update.effective_user
+    
+    logger.info(f"🔗 /referral от user {user.id}")
+    
+    try:
+        # Получаем статистику из API
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f'{API_BASE_URL}/api/referrals?userId={user.id}',
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    total = data.get('total', 0)
+                    rewarded = data.get('rewarded', 0)
+                    pending = data.get('pending', 0)
+                    
+                    # Генерируем реферальную ссылку
+                    bot_username = (await context.bot.get_me()).username
+                    ref_link = f"https://t.me/{bot_username}?startapp=ref_{user.id}"
+                    
+                    text = (
+                        f"🎁 <b>Пригласи друга - получи 30 дней PRO!</b>\n\n"
+                        f"<b>Твоя реферальная ссылка:</b>\n"
+                        f"<code>{ref_link}</code>\n\n"
+                        f"<b>Как это работает:</b>\n"
+                        f"1️⃣ Отправь ссылку другу\n"
+                        f"2️⃣ Друг переходит и <b>создаёт анкету</b>\n"
+                        f"3️⃣ Ты получаешь 30 дней PRO! 🎉\n\n"
+                        f"👥 Приглашено: <b>{total}</b> друзей\n"
+                        f"✅ Награда получена: <b>{rewarded}</b> раз\n"
+                        f"⏳ В ожидании: <b>{pending}</b>\n\n"
+                        f"⚠️ <i>Акция действует ОДИН РАЗ для новых пользователей</i>\n"
+                        f"💡 <i>Если ты уже получал PRO ранее, новые рефералы не дадут награду</i>"
+                    )
+                    
+                    keyboard = [
+                        [InlineKeyboardButton(
+                            "📤 Поделиться ссылкой", 
+                            url=f"https://t.me/share/url?url={ref_link}&text=Попробуй Anonimka - анонимные знакомства! Мы оба получим PRO на месяц 🎁"
+                        )],
+                        [InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]
+                    ]
+                    
+                    await update.message.reply_text(
+                        text,
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                        parse_mode='HTML'
+                    )
+                else:
+                    logger.error(f'❌ API /referrals вернул статус {resp.status}')
+                    await update.message.reply_text(
+                        '❌ Ошибка получения статистики\n'
+                        'Попробуйте позже'
+                    )
+    except Exception as e:
+        logger.error(f"❌ Ошибка /referral: {e}")
+        await update.message.reply_text(
+            '❌ Ошибка обработки команды\n'
+            'Попробуйте позже или обратитесь в поддержку'
+        )
+
 async def successful_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик успешного платежа Stars"""
     payment = update.message.successful_payment
@@ -1360,6 +1424,7 @@ def main():
     
     # Команды PRO подписки
     application.add_handler(CommandHandler("premium", premium_command))
+    application.add_handler(CommandHandler("referral", referral_command))
     application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
     
     # Обработчики callback
