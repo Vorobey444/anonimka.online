@@ -16,6 +16,7 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     CallbackQueryHandler,
+    PreCheckoutQueryHandler,
     ContextTypes,
     filters
 )
@@ -1564,6 +1565,21 @@ async def referral_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'Попробуйте позже или обратитесь в поддержку'
         )
 
+async def precheckout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик pre-checkout запроса - обязателен для завершения платежа Stars"""
+    query = update.pre_checkout_query
+    
+    logger.info(f'💳 Pre-checkout запрос от user {query.from_user.id}: {query.invoice_payload}')
+    
+    # ВАЖНО: Всегда отвечаем ok=True для Stars платежей
+    # Здесь можно добавить дополнительные проверки если нужно
+    try:
+        await query.answer(ok=True)
+        logger.info(f'✅ Pre-checkout подтверждён для {query.from_user.id}')
+    except Exception as e:
+        logger.error(f'❌ Ошибка pre-checkout: {e}')
+        await query.answer(ok=False, error_message="Ошибка обработки платежа")
+
 async def successful_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик успешного платежа Stars"""
     payment = update.message.successful_payment
@@ -1729,6 +1745,9 @@ def main():
     # Команды PRO подписки
     application.add_handler(CommandHandler("premium", premium_command))
     application.add_handler(CommandHandler("referral", referral_command))
+    
+    # Обработчики платежей Stars (ВАЖНО: PreCheckoutQueryHandler должен быть ДО SUCCESSFUL_PAYMENT)
+    application.add_handler(PreCheckoutQueryHandler(precheckout_callback))
     application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
     
     # Обработчики callback
