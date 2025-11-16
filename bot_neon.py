@@ -1602,6 +1602,27 @@ async def successful_payment_callback(update: Update, context: ContextTypes.DEFA
                         parse_mode='HTML'
                     )
                     logger.info(f'✅ PRO активирован для {user.id} на {months} мес.')
+                    
+                    # Отправляем уведомление админу
+                    try:
+                        username_text = f"@{user.username}" if user.username else "без username"
+                        admin_message = (
+                            f"💰 <b>НОВАЯ ПОКУПКА PRO!</b>\n\n"
+                            f"👤 Пользователь: {user.first_name}\n"
+                            f"🆔 ID: <code>{user.id}</code>\n"
+                            f"📱 Username: {username_text}\n"
+                            f"⭐ Срок: <b>{months} мес.</b>\n"
+                            f"💵 Сумма: {payment.total_amount} Stars\n"
+                            f"🔑 Транзакция: <code>{payment.telegram_payment_charge_id}</code>"
+                        )
+                        await context.bot.send_message(
+                            chat_id=ADMIN_TG_ID,
+                            text=admin_message,
+                            parse_mode='HTML'
+                        )
+                        logger.info(f'✅ Уведомление админу отправлено о покупке {user.id}')
+                    except Exception as e:
+                        logger.error(f'❌ Ошибка отправки уведомления админу: {e}')
                 else:
                     error_text = await resp.text()
                     logger.error(f'❌ API вернул {resp.status}: {error_text}')
