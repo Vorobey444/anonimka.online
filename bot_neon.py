@@ -1331,6 +1331,39 @@ async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         return
     
+    # Запрашиваем цены для всех месяцев через API
+    prices_data = {}
+    try:
+        async with aiohttp.ClientSession() as session:
+            for months in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
+                async with session.get(
+                    f'{API_BASE_URL}/api/premium/calculate?months={months}',
+                    timeout=aiohttp.ClientTimeout(total=5)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        prices_data[months] = {
+                            'stars': data['stars'],
+                            'discount': data.get('discount', 0)
+                        }
+    except Exception as e:
+        logger.error(f'❌ Ошибка загрузки цен: {e}')
+        # Фоллбэк к базовым ценам
+        prices_data = {
+            1: {'stars': 50, 'discount': 0},
+            2: {'stars': 90, 'discount': 10},
+            3: {'stars': 130, 'discount': 17},
+            4: {'stars': 170, 'discount': 23},
+            5: {'stars': 205, 'discount': 28},
+            6: {'stars': 215, 'discount': 30},
+            7: {'stars': 250, 'discount': 33},
+            8: {'stars': 275, 'discount': 35},
+            9: {'stars': 300, 'discount': 37},
+            10: {'stars': 325, 'discount': 38},
+            11: {'stars': 345, 'discount': 39},
+            12: {'stars': 360, 'discount': 41}
+        }
+    
     premium_text = (
         "⭐ <b>Anonimka PRO</b>\n\n"
         "Получи максимум от анонимных знакомств!\n\n"
@@ -1341,17 +1374,23 @@ async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✅ Видно кто лайкнул профиль\n"
         "✅ Без рекламы\n"
         "✅ Эксклюзивный бейдж PRO\n\n"
-        "<b>Выбери тариф:</b>"
+        "<b>Выбери срок подписки:</b>"
     )
     
-    keyboard = [
-        [InlineKeyboardButton("🔥 1 месяц - 50 Stars", callback_data="buy_pro_1")],
-        [InlineKeyboardButton("⭐ 3 месяца - 130 Stars (-17%)", callback_data="buy_pro_3")],
-        [InlineKeyboardButton("💎 6 месяцев - 215 Stars (-30%)", callback_data="buy_pro_6")],
-        [InlineKeyboardButton("👑 1 год - 360 Stars (-41%)", callback_data="buy_pro_12")],
-        [InlineKeyboardButton("❓ Как купить Stars", url="https://t.me/PremiumBot")],
-        [InlineKeyboardButton("« Назад в меню", callback_data="main_menu")]
-    ]
+    # Формируем кнопки для всех 12 месяцев
+    keyboard = []
+    for months in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
+        price_info = prices_data.get(months, {'stars': 50, 'discount': 0})
+        month_word = "месяц" if months == 1 else ("месяца" if 2 <= months <= 4 else "месяцев")
+        
+        discount_text = f" (-{price_info['discount']}%)" if price_info['discount'] > 0 else ""
+        emoji = "🔥" if months == 1 else "⭐" if months == 3 else "💎" if months == 6 else "👑" if months == 12 else "📅"
+        
+        button_text = f"{emoji} {months} {month_word} - {price_info['stars']} Stars{discount_text}"
+        keyboard.append([InlineKeyboardButton(button_text, callback_data=f"buy_pro_{months}")])
+    
+    keyboard.append([InlineKeyboardButton("❓ Как купить Stars", url="https://t.me/PremiumBot")])
+    keyboard.append([InlineKeyboardButton("« Назад в меню", callback_data="main_menu")])
     
     if update.callback_query:
         await update.callback_query.answer()
