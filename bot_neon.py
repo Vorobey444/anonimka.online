@@ -1294,7 +1294,7 @@ async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     keyboard = [
-        [InlineKeyboardButton("🔥 1 месяц - 50 Stars (всего 499₸!)", callback_data="buy_pro_1")],
+        [InlineKeyboardButton("🔥 1 месяц - 50 Stars", callback_data="buy_pro_1")],
         [InlineKeyboardButton("⭐ 3 месяца - 130 Stars (-17%)", callback_data="buy_pro_3")],
         [InlineKeyboardButton("💎 6 месяцев - 215 Stars (-30%)", callback_data="buy_pro_6")],
         [InlineKeyboardButton("👑 1 год - 360 Stars (-41%)", callback_data="buy_pro_12")],
