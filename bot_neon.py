@@ -105,6 +105,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.args and len(context.args) > 0:
         start_param = context.args[0]
         
+        # Если это покупка PRO
+        if start_param == 'buy_premium':
+            logger.info(f"💳 Запрос покупки PRO от user {user.id}")
+            await premium_command(update, context)
+            return
+        
         # Если это реферальная ссылка
         if start_param.startswith('ref_'):
             referrer_token = start_param.replace('ref_', '')
