@@ -209,23 +209,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [
         [InlineKeyboardButton("🚀 Создать анкету", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))],
+        [
+            InlineKeyboardButton("⭐ Купить PRO", callback_data="premium"),
+            InlineKeyboardButton("🎁 Пригласи друга", callback_data="referral")
+        ],
         [InlineKeyboardButton("📢 Наш канал", url="https://t.me/anonimka_kz")]
     ]
     
     # Добавляем кнопку розыгрыша если он активен
     global giveaway_active
     if giveaway_active:
-        keyboard.append([InlineKeyboardButton("✅ Я выполнил условия розыгрыша", callback_data="participate_giveaway")])
+        keyboard.append([InlineKeyboardButton("🎉 Я выполнил условия розыгрыша", callback_data="participate_giveaway")])
     
     keyboard.extend([
-        [InlineKeyboardButton("⭐ Купить PRO", callback_data="premium")],
-        [InlineKeyboardButton("❓ Помощь", callback_data="help")],
         [
-            InlineKeyboardButton("📋 Правила", url=f"{API_BASE_URL}/TERMS_OF_SERVICE.md"),
-            InlineKeyboardButton("🔒 Политика", url=f"{API_BASE_URL}/PRIVACY_POLICY.md")
+            InlineKeyboardButton("❓ Помощь", callback_data="help"),
+            InlineKeyboardButton("ℹ️ О проекте", callback_data="about")
         ],
-        [InlineKeyboardButton("💬 Тех.поддержка", url="https://t.me/Vorobey_444")],
-        [InlineKeyboardButton("🤝 Реклама и сотрудничество", callback_data="advertising")]
+        [InlineKeyboardButton("💬 Поддержка и реклама", callback_data="contacts")]
     ])
     
     await update.message.reply_text(
@@ -242,23 +243,24 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [
         [InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url=f"{API_BASE_URL}"))],
+        [
+            InlineKeyboardButton("⭐ Купить PRO", callback_data="premium"),
+            InlineKeyboardButton("🎁 Пригласи друга", callback_data="referral")
+        ],
         [InlineKeyboardButton("📢 Наш канал", url="https://t.me/anonimka_kz")]
     ]
     
     # Добавляем кнопку розыгрыша если он активен
     global giveaway_active
     if giveaway_active:
-        keyboard.append([InlineKeyboardButton("✅ Я выполнил условия розыгрыша", callback_data="participate_giveaway")])
+        keyboard.append([InlineKeyboardButton("🎉 Я выполнил условия розыгрыша", callback_data="participate_giveaway")])
     
     keyboard.extend([
-        [InlineKeyboardButton("⭐ Купить PRO", callback_data="premium")],
-        [InlineKeyboardButton("❓ Помощь", callback_data="help")],
         [
-            InlineKeyboardButton("📋 Правила", url=f"{API_BASE_URL}/TERMS_OF_SERVICE.md"),
-            InlineKeyboardButton("🔒 Политика", url=f"{API_BASE_URL}/PRIVACY_POLICY.md")
+            InlineKeyboardButton("❓ Помощь", callback_data="help"),
+            InlineKeyboardButton("ℹ️ О проекте", callback_data="about")
         ],
-        [InlineKeyboardButton("💬 Тех.поддержка", url="https://t.me/Vorobey_444")],
-        [InlineKeyboardButton("🤝 Реклама и сотрудничество", callback_data="advertising")]
+        [InlineKeyboardButton("💬 Поддержка и реклама", callback_data="contacts")]
     ])
     
     if update.callback_query:
@@ -312,32 +314,71 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-async def advertising_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать информацию о рекламе и сотрудничестве"""
+async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Информация о проекте"""
+    about_text = (
+        "ℹ️ <b>О проекте Anonimka.kz</b>\n\n"
+        "Анонимная платформа знакомств без регистрации и личных данных.\n\n"
+        "✨ <b>Особенности:</b>\n"
+        "• Полная анонимность\n"
+        "• Автоудаление анкет через 7 дней\n"
+        "• Защищенные чаты\n"
+        "• Быстрый поиск собеседников\n\n"
+        f"📋 <a href='{API_BASE_URL}/TERMS_OF_SERVICE.md'>Правила</a> | "
+        f"<a href='{API_BASE_URL}/PRIVACY_POLICY.md'>Политика</a>"
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("🚀 Создать анкету", web_app=WebAppInfo(url=f"{API_BASE_URL}/webapp"))],
+        [InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]
+    ]
+    
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.message.edit_text(
+            about_text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            disable_web_page_preview=True
+        )
+    else:
+        await update.message.reply_text(
+            about_text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            disable_web_page_preview=True
+        )
+
+async def contacts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать контакты: поддержка и реклама"""
     query = update.callback_query
     await query.answer()
     
-    advertising_text = (
-        "📢 <b>Реклама и сотрудничество</b>\n\n"
+    contacts_text = (
+        "💬 <b>Контакты и реклама</b>\n\n"
         
-        "Заинтересованы в размещении рекламы или сотрудничестве?\n"
-        "Мы открыты к предложениям!\n\n"
+        "<b>Техническая поддержка:</b>\n"
+        "@Vorobey_444\n\n"
         
-        "🔹 <b>Контакты для связи:</b>\n"
+        "<b>Реклама и сотрудничество:</b>\n"
         "📧 Email: aleksey@vorobey444.ru\n"
         "💬 Telegram: @Vorobey_444\n\n"
         
-        "Свяжитесь с нами для обсуждения деталей и условий сотрудничества."
+        "Мы открыты к предложениям!"
     )
     
     keyboard = [[InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await query.edit_message_text(
-        text=advertising_text,
+        text=contacts_text,
         reply_markup=reply_markup,
         parse_mode="HTML"
     )
+
+async def referral_command_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Callback handler для кнопки реферальной программы"""
+    await referral_command(update, context)
 
 async def my_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /my_chats - показать мои чаты"""
@@ -1436,7 +1477,9 @@ def main():
     # Обработчики callback
     application.add_handler(CallbackQueryHandler(menu_command, pattern="^main_menu$"))
     application.add_handler(CallbackQueryHandler(help_command, pattern="^help$"))
-    application.add_handler(CallbackQueryHandler(advertising_command, pattern="^advertising$"))
+    application.add_handler(CallbackQueryHandler(about_command, pattern="^about$"))
+    application.add_handler(CallbackQueryHandler(contacts_command, pattern="^contacts$"))
+    application.add_handler(CallbackQueryHandler(referral_command_callback, pattern="^referral$"))
     application.add_handler(CallbackQueryHandler(premium_command, pattern="^premium$"))
     application.add_handler(CallbackQueryHandler(buy_premium_callback, pattern="^buy_pro_"))
     application.add_handler(CallbackQueryHandler(participate_giveaway_callback, pattern="^participate_giveaway$"))
